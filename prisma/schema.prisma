@@ -1,9 +1,10 @@
 
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
+
 
 datasource db {
   provider = "postgresql"
@@ -14,7 +15,7 @@ datasource db {
 model User {
   id            Int            @id @default(autoincrement())
   email         String         @unique
-  password      String         // এনক্রিপ্টেড পাসওয়ার্ড
+  password      String        
   role          Role           @default(VIEWER)
   profile       UserProfile?
   notifications Notification[]
