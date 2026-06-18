@@ -16,10 +16,12 @@ export class UserService {
     const { password, verificationToken, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
-
   async findAll(query: UserQueryDto) {
     const { page, limit, search, role, isVerified } = query;
-    const skip = (page - 1) * limit;
+
+    const currentPage = page || 1;
+    const currentLimit = limit || 10;
+    const skip = (currentPage - 1) * currentLimit;
 
     const where: any = {};
 
@@ -40,23 +42,22 @@ export class UserService {
       ];
     }
 
-    const [total, users] = await this.prisma.$transaction([
-      this.prisma.user.count({ where }),
-      this.prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    const total = await this.prisma.user.count({ where });
+
+    const users = await this.prisma.user.findMany({
+      where,
+      skip,
+      take: currentLimit,
+      orderBy: { createdAt: 'desc' },
+    });
 
     return {
       data: users.map((u) => this.excludePassword(u)),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: currentPage,
+        limit: currentLimit,
+        totalPages: Math.ceil(total / currentLimit),
       },
     };
   }
