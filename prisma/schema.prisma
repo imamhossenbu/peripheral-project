@@ -8,3 +8,93 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+
+
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String         // এনক্রিপ্টেড পাসওয়ার্ড
+  role          Role           @default(VIEWER)
+  profile       UserProfile?
+  notifications Notification[]
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model UserProfile {
+  id         Int     @id @default(autoincrement())
+  userId     Int     @unique
+  user       User    @relation(fields: [userId], references: [id])
+  firstName  String?
+  lastName   String?
+  department String?
+}
+
+
+model Category {
+  id            Int        @id @default(autoincrement())
+  name          String
+  parentId      Int?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  devices       Device[]
+}
+
+
+model Device {
+  id               Int      @id @default(autoincrement())
+  name             String
+  brand            String
+  model            String
+  serialNumber     String   @unique
+  price            Decimal
+  status           Status   @default(AVAILABLE)
+  
+
+  description      String
+  specifications   Json     
+  workingPrinciple String   @db.Text
+  
+ 
+  purchaseDate     DateTime
+  warrantyExpiry   DateTime
+  
+  categoryId       Int
+  category         Category @relation(fields: [categoryId], references: [id])
+  
+  logs             InventoryLog[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+enum Status {
+  AVAILABLE
+  IN_MAINTENANCE
+  DEPLOYED
+  RETIRED
+}
+
+
+model InventoryLog {
+  id          Int      @id @default(autoincrement())
+  deviceId    Int
+  device      Device   @relation(fields: [deviceId], references: [id])
+  action      String   // e.g., "REPAIR", "DEPLOY"
+  remarks     String?
+  performedAt DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   // e.g., "WARRANTY_EXPIRY", "STOCK_LOW"
+  createdAt DateTime @default(now())
+}
