@@ -58,4 +58,11 @@ export class AuthService {
     });
     return { message: 'Email verified successfully' };
   }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    return await this.prisma.user.update({
+      where: { id: userId },
+      data: dto,
+    });
+  }
 }

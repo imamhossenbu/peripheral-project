@@ -6,7 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '../prisma/prisma.module';
 import { MailModule } from './mail/mail.module';
 import { JwtStrategy } from './jwt/jwt.strategy';
-
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -15,8 +15,9 @@ import { JwtStrategy } from './jwt/jwt.strategy';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' },
     }),
-    PrismaModule, 
-    MailModule, 
+    PrismaModule,
+    MailModule,
+    CloudinaryModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

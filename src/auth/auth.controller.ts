@@ -7,15 +7,23 @@ import {
   Patch,
   UseGuards,
   Req,
+  UseInterceptors,
+  UploadedFile,
+  InternalServerErrorException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
-
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -32,12 +40,29 @@ export class AuthController {
     return this.authService.verifyEmail(token);
   }
 
-//   @UseGuards(JwtAuthGuard)
-//   @Patch('profile')
-//   updateProfile(@Req() req, @Body() dto: UpdateProfileDto) {
-//     return this.prisma.user.update({
-//       where: { id: req.user.userId },
-//       data: dto,
-//     });
-//   }
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  @UseInterceptors(FileInterceptor('file'))
+  async updateProfile(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: UpdateProfileDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    try {
+      let imageUrl = dto.imageUrl;
+      if (file) {
+        const uploadResult = await this.cloudinaryService.uploadFile(file);
+        imageUrl = uploadResult.secure_url;
+      }
+      return await this.authService.updateProfile(+req.user.userId, {
+        ...dto,
+        imageUrl,
+      });
+    } catch (error) {
+      console.error('Profile Update Failed:', error);
+      throw new InternalServerErrorException(
+        'Image upload or database update failed',
+      );
+    }
+  }
 }

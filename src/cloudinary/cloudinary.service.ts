@@ -1,19 +1,25 @@
-import { Injectable } from '@nestjs/common';
+// src/cloudinary/cloudinary.service.ts
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
-import { UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
+import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
 
 @Injectable()
 export class CloudinaryService {
-  uploadFile(
-    file: Express.Multer.File,
-  ): Promise<UploadApiResponse | UploadApiErrorResponse> {
+  uploadFile(file: Express.Multer.File): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
-      const upload = cloudinary.uploader.upload_stream((error, result) => {
-        if (error) return reject(error);
-        if (!result) return reject(new Error('Cloudinary upload failed'));
-        resolve(result);
-      });
+      // 'folder' প্রপার্টি যোগ করা ভালো যাতে ইমেজগুলো গুছিয়ে থাকে
+      const upload = cloudinary.uploader.upload_stream(
+        { folder: 'lms-profiles' },
+        (error, result) => {
+          if (error) {
+            console.error('Cloudinary Error:', error); // এরর কনসোলে চেক করুন
+            return reject(error);
+          }
+          if (!result) return reject(new Error('Upload failed'));
+          resolve(result);
+        },
+      );
       streamifier.createReadStream(file.buffer).pipe(upload);
     });
   }
