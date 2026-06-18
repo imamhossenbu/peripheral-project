@@ -1,98 +1,160 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Peripheral Management & Inventory System Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A modern, scalable, and feature-rich backend built with **NestJS**, **Prisma ORM**, and **PostgreSQL** to manage IT peripheral inventory, track device lifecycles with automated audit logs, distribute notifications, and provide administrative analytics.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🛠️ Tech Stack & Architecture
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Core Framework**: NestJS (v11+)
+- **Database ORM**: Prisma ORM with PostgreSQL Adapter
+- **Authentication**: JWT (Passport) + Custom Role-Based Guards (`ADMIN`, `EDITOR`, `VIEWER`)
+- **Media Uploads**: Cloudinary Integration
+- **Mailing**: Nodemailer (Resend API)
+- **Testing**: Jest & Supertest E2E Test Suite
 
-## Project setup
+---
+
+## 🌟 Key Features
+
+1. **Authentication & Profile Management**
+   - User registration and activation flow.
+   - JWT-based login with dynamic session validation.
+   - Security flows: Password reset, change password, profile details updates, and profile image uploads via Cloudinary.
+   
+2. **Role-Based Access Control (RBAC)**
+   - Custom `@Roles(...)` decorator paired with a global `RolesGuard`.
+   - Granular authorization permissions for `ADMIN`, `EDITOR`, and `VIEWER` roles across all modules.
+
+3. **User Management (Admin Only)**
+   - List, query, filter, paginate, update roles, and manage users.
+
+4. **Hierarchical Category Structure**
+   - Parent-child nested categories to build a clean asset taxonomy tree.
+
+5. **Device & Asset Tracking**
+   - Track peripheral details (serial number, price, status, warranty expiry, customized JSON specifications).
+   - Lifecycle states: `AVAILABLE`, `IN_MAINTENANCE`, `DEPLOYED`, `RETIRED`.
+
+6. **Automated Audit Logging**
+   - `InventoryLog` automatically audits asset updates, status changes, creations, and deletions. Allows manual logs with administrator remarks.
+
+7. **Notification System**
+   - Dispatch alerts to target users or broadcast to all.
+   - Users can retrieve their personal alerts and mark notifications as read.
+
+8. **Admin Analytical Dashboard**
+   - High-level metrics: Total inventory asset value, asset counts by status, user distribution by roles, total category tree size, and recent logs.
+
+---
+
+## 🚀 Getting Started
+
+### 📋 Prerequisites
+
+- Node.js (v20+ / v22+ recommended)
+- PostgreSQL Database instance
+
+### ⚙️ Installation
+
+1. Clone the project and install the dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Create a `.env` file in the root directory and configure the environment variables:
+   ```env
+   PORT=3000
+   DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
+   JWT_SECRET="your_jwt_secret_key"
+   
+   # Cloudinary config (optional for file uploads)
+   CLOUDINARY_CLOUD_NAME="your_cloud_name"
+   CLOUDINARY_API_KEY="your_api_key"
+   CLOUDINARY_API_SECRET="your_api_secret"
+   
+   # Mail Service API
+   RESEND_API_KEY="re_..."
+   EMAIL_FROM="noreply@yourdomain.com"
+   ```
+
+3. Run Prisma migrations to set up the database schema:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+---
+
+## 🏃 Running the Application
 
 ```bash
-$ npm install
+# Compile and build the project
+npm run build
+
+# Start production server
+npm run start
+
+# Start in development mode
+npm run dev
 ```
 
-## Compile and run the project
+---
+
+## 🧪 Running Tests
+
+To verify the integration and route logic, run the E2E test suite:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Run all E2E route tests
+npm run test:e2e
 ```
 
-## Run tests
+The test suite contains **27 tests** covering authorization constraints, validation, role restrictions, and mock database flows for all 7 modules.
 
-```bash
-# unit tests
-$ npm run test
+---
 
-# e2e tests
-$ npm run test:e2e
+## 📍 API Routes Reference
 
-# test coverage
-$ npm run test:cov
-```
+### Auth Module (`/auth`)
+- `POST /auth/register` - Register a new account
+- `POST /auth/login` - Authenticate user and receive JWT token
+- `GET /auth/verify?token=...` - Confirm email token verification
+- `PATCH /auth/profile` - Update profile settings (Cloudinary image upload supported)
+- `POST /auth/forgot-password` - Request a password reset link
+- `POST /auth/reset-password?token=...` - Reset password using token
+- `POST /auth/change-password` - Update password while logged in
 
-## Deployment
+### Users Module (`/users`)
+- `GET /users/me` - Get current logged-in user profile
+- `GET /users` - Get paginated list of all users (*Admin only*)
+- `GET /users/:id` - Get specific user details (*Admin only*)
+- `POST /users` - Create verified users (*Admin only*)
+- `PATCH /users/:id` - Modify user details/roles (*Admin only*)
+- `DELETE /users/:id` - Delete user account (*Admin only*)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Categories Module (`/categories`)
+- `GET /categories` - List categories (includes nested tree view option)
+- `GET /categories/:id` - Get individual category details
+- `POST /categories` - Create a new category (*Admin/Editor only*)
+- `PATCH /categories/:id` - Update category details (*Admin/Editor only*)
+- `DELETE /categories/:id` - Delete a category (*Admin/Editor only*)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Devices Module (`/devices`)
+- `GET /devices` - Query, filter, and paginate assets
+- `GET /devices/:id` - Retrieve individual device details
+- `POST /devices` - Register a new device (*Admin/Editor only*)
+- `PATCH /devices/:id` - Update device details/status (*Admin/Editor only*)
+- `DELETE /devices/:id` - Remove device (*Admin/Editor only*)
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### Inventory Logs Module (`/inventory-logs`)
+- `GET /inventory-logs` - Query & paginate audit logs (*Admin/Editor only*)
+- `POST /inventory-logs` - Manually record an asset audit log (*Admin/Editor only*)
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Notifications Module (`/notifications`)
+- `GET /notifications` - Retrieve personal alerts
+- `PATCH /notifications/read-all` - Mark all notifications as read
+- `PATCH /notifications/:id/read` - Mark single notification as read
+- `POST /notifications` - Send targeted/broadcast notification alerts (*Admin only*)
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Admin Module (`/admin`)
+- `GET /admin/dashboard` - Retrieve analytical dashboard statistics (*Admin only*)
