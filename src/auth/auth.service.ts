@@ -59,10 +59,51 @@ export class AuthService {
     return { message: 'Email verified successfully' };
   }
 
-  async updateProfile(userId: number, dto: UpdateProfileDto) {
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
     return await this.prisma.user.update({
       where: { id: userId },
       data: dto,
     });
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) throw new BadRequestException('User not found');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { verificationToken: token },
+    });
+
+    await this.mailService.sendResetPasswordEmail(email, token);
+    return { message: 'Reset link sent to your email' };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { verificationToken: token },
+    });
+    if (!user) throw new BadRequestException('Invalid token');
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hash, verificationToken: null },
+    });
+    return { message: 'Password updated successfully' };
+  }
+
+  async changePassword(userId: string, oldPass: string, newPass: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await bcrypt.compare(oldPass, user.password)))
+      throw new UnauthorizedException('Wrong password');
+
+    const hash = await bcrypt.hash(newPass, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hash },
+    });
+    return { message: 'Password changed successfully' };
   }
 }

@@ -10,25 +10,18 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id                Int            @id @default(autoincrement())
+  id                String         @id @default(cuid())
   email             String         @unique
   password          String
   role              Role           @default(VIEWER)
-  
-
   firstName         String?
   lastName          String?
   department        String?
   imageUrl          String?
-  
   isVerified        Boolean        @default(false)
   verificationToken String?        @unique
-  
-
   notifications     Notification[]
-  
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 }
@@ -39,42 +32,33 @@ enum Role {
   VIEWER
 }
 
-
-
 model Category {
-  id            Int        @id @default(autoincrement())
+  id            String     @id @default(cuid())
   name          String
-  parentId      Int?
+  parentId      String?
   parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
   subCategories Category[] @relation("SubCategories")
   devices       Device[]
 }
 
-
 model Device {
-  id               Int      @id @default(autoincrement())
+  id               String         @id @default(cuid())
   name             String
   brand            String
   model            String
-  serialNumber     String   @unique
+  serialNumber     String         @unique
   price            Decimal
-  status           Status   @default(AVAILABLE)
-  
-
+  status           Status         @default(AVAILABLE)
   description      String
-  specifications   Json     
-  workingPrinciple String   @db.Text
-  
- 
+  specifications   Json
+  workingPrinciple String         @db.Text
   purchaseDate     DateTime
   warrantyExpiry   DateTime
-  
-  categoryId       Int
-  category         Category @relation(fields: [categoryId], references: [id])
-  
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id])
   logs             InventoryLog[]
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 }
 
 enum Status {
@@ -84,22 +68,21 @@ enum Status {
   RETIRED
 }
 
-
 model InventoryLog {
-  id          Int      @id @default(autoincrement())
-  deviceId    Int
+  id          String   @id @default(cuid())
+  deviceId    String
   device      Device   @relation(fields: [deviceId], references: [id])
-  action      String   // e.g., "REPAIR", "DEPLOY"
+  action      String
   remarks     String?
   performedAt DateTime @default(now())
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
+  id        String   @id @default(cuid())
+  userId    String
   user      User     @relation(fields: [userId], references: [id])
   message   String
   isRead    Boolean  @default(false)
-  type      String   // e.g., "WARRANTY_EXPIRY", "STOCK_LOW"
+  type      String
   createdAt DateTime @default(now())
 }

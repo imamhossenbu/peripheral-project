@@ -54,7 +54,7 @@ export class AuthController {
         const uploadResult = await this.cloudinaryService.uploadFile(file);
         imageUrl = uploadResult.secure_url;
       }
-      return await this.authService.updateProfile(+req.user.userId, {
+      return await this.authService.updateProfile(req.user.userId, {
         ...dto,
         imageUrl,
       });
@@ -64,5 +64,34 @@ export class AuthController {
         'Image upload or database update failed',
       );
     }
+  }
+
+  // Forgot Password (Public)
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  // Reset Password (Public)
+  @Post('reset-password')
+  async resetPassword(
+    @Query('token') token: string,
+    @Body('password') password: string,
+  ) {
+    return this.authService.resetPassword(token, password);
+  }
+
+  // Change Password (Protected)
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() body: any,
+  ) {
+    return this.authService.changePassword(
+      req.user.userId,
+      body.oldPassword,
+      body.newPassword,
+    );
   }
 }
