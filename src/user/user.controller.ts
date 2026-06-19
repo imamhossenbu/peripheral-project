@@ -23,23 +23,34 @@ import { Role } from '../../generated/prisma';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+
+
+  // get my profile
   @Get('me')
   async getProfile(@Req() req: Request & { user: { userId: string } }) {
     return this.userService.findOne(req.user.userId);
   }
 
+
+
+  // get all user for admin panel
   @Get()
   @Roles(Role.ADMIN)
   async findAll(@Query() query: UserQueryDto) {
     return this.userService.findAll(query);
   }
 
+
+  // get a single user by id for admin panel
   @Get(':id')
   @Roles(Role.ADMIN)
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
+
+
+  // create, update, delete user for admin panel
   @Post()
   @Roles(Role.ADMIN)
   async create(@Body() dto: CreateUserDto) {
