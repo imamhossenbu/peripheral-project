@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
 import { InventoryLogService } from './inventory-log.service';
 import { CreateManualLogDto, LogQueryDto } from './dto/inventory-log.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
@@ -19,11 +12,13 @@ import { Role } from '../../generated/prisma';
 export class InventoryLogController {
   constructor(private readonly logService: InventoryLogService) {}
 
+  // find all inventory logs for admin panel
   @Get()
   async findAll(@Query() query: LogQueryDto) {
     return this.logService.findAll(query);
   }
 
+  // create manual log for admin panel
   @Post()
   async createManualLog(@Body() dto: CreateManualLogDto) {
     return this.logService.createManualLog(dto);
