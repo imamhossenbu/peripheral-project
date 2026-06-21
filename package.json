@@ -4,7 +4,8 @@
   "description": "LMS AI Backend",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
+    "prisma:generate": "prisma generate",
     "start": "node dist/main.js",
     "dev": "ts-node src/main.ts",
     "test:e2e": "jest --config ./test/jest-e2e.json"
