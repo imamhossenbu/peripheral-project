@@ -43,7 +43,7 @@ export class DeviceService {
       ];
     }
 
-    const [total, devices] = await this.prisma.$transaction([
+    const [total, devices] = await Promise.all([
       this.prisma.device.count({ where }),
       this.prisma.device.findMany({
         where,

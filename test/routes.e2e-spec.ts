@@ -24,26 +24,60 @@ describe('API Routes (e2e)', () => {
 
   // Mock service implementations
   const mockAuthService = {
-    register: jest.fn().mockImplementation((dto) => ({ id: 'mock-user-id', email: dto.email, role: Role.VIEWER })),
+    register: jest
+      .fn()
+      .mockImplementation((dto) => ({
+        id: 'mock-user-id',
+        email: dto.email,
+        role: Role.VIEWER,
+      })),
     login: jest.fn().mockReturnValue({ accessToken: 'mock-jwt-token' }),
-    verifyEmail: jest.fn().mockReturnValue({ message: 'Email verified successfully' }),
-    updateProfile: jest.fn().mockImplementation((userId, dto) => ({ id: userId, ...dto })),
+    verifyEmail: jest
+      .fn()
+      .mockReturnValue({ message: 'Email verified successfully' }),
+    updateProfile: jest
+      .fn()
+      .mockImplementation((userId, dto) => ({ id: userId, ...dto })),
     forgotPassword: jest.fn().mockReturnValue({ message: 'Reset token sent' }),
-    resetPassword: jest.fn().mockReturnValue({ message: 'Password reset successful' }),
-    changePassword: jest.fn().mockReturnValue({ message: 'Password changed successfully' }),
+    resetPassword: jest
+      .fn()
+      .mockReturnValue({ message: 'Password reset successful' }),
+    changePassword: jest
+      .fn()
+      .mockReturnValue({ message: 'Password changed successfully' }),
   };
 
   const mockUserService = {
-    findOne: jest.fn().mockImplementation((id) => ({ id, email: 'user@example.com', role: Role.VIEWER })),
-    findAll: jest.fn().mockReturnValue({ data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } }),
-    create: jest.fn().mockImplementation((dto) => ({ id: 'new-user-id', ...dto })),
+    findOne: jest
+      .fn()
+      .mockImplementation((id) => ({
+        id,
+        email: 'user@example.com',
+        role: Role.VIEWER,
+      })),
+    findAll: jest
+      .fn()
+      .mockReturnValue({
+        data: [],
+        meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+      }),
+    create: jest
+      .fn()
+      .mockImplementation((dto) => ({ id: 'new-user-id', ...dto })),
     update: jest.fn().mockImplementation((id, dto) => ({ id, ...dto })),
-    remove: jest.fn().mockImplementation((id) => ({ message: 'User deleted successfully', id })),
+    remove: jest
+      .fn()
+      .mockImplementation((id) => ({
+        message: 'User deleted successfully',
+        id,
+      })),
   };
 
   const mockCategoryService = {
     findAll: jest.fn().mockReturnValue([]),
-    findOne: jest.fn().mockImplementation((id) => ({ id, name: 'Test Category' })),
+    findOne: jest
+      .fn()
+      .mockImplementation((id) => ({ id, name: 'Test Category' })),
     create: jest.fn().mockImplementation((dto) => ({ id: 'cat-id', ...dto })),
     update: jest.fn().mockImplementation((id, dto) => ({ id, ...dto })),
     remove: jest.fn().mockImplementation((id) => ({ id })),
@@ -51,7 +85,9 @@ describe('API Routes (e2e)', () => {
 
   const mockDeviceService = {
     findAll: jest.fn().mockReturnValue({ data: [], meta: {} }),
-    findOne: jest.fn().mockImplementation((id) => ({ id, name: 'Test Device' })),
+    findOne: jest
+      .fn()
+      .mockImplementation((id) => ({ id, name: 'Test Device' })),
     create: jest.fn().mockImplementation((dto) => ({ id: 'dev-id', ...dto })),
     update: jest.fn().mockImplementation((id, dto) => ({ id, ...dto })),
     remove: jest.fn().mockImplementation((id) => ({ id })),
@@ -59,22 +95,30 @@ describe('API Routes (e2e)', () => {
 
   const mockInventoryLogService = {
     findAll: jest.fn().mockReturnValue([]),
-    createManualLog: jest.fn().mockImplementation((dto) => ({ id: 'log-id', ...dto })),
+    createManualLog: jest
+      .fn()
+      .mockImplementation((dto) => ({ id: 'log-id', ...dto })),
   };
 
   const mockNotificationService = {
     getMyNotifications: jest.fn().mockReturnValue([]),
     markAllAsRead: jest.fn().mockReturnValue({ count: 5 }),
     markAsRead: jest.fn().mockReturnValue({ id: 'notif-id', isRead: true }),
-    createNotification: jest.fn().mockImplementation((dto) => ({ id: 'notif-id', ...dto })),
+    createNotification: jest
+      .fn()
+      .mockImplementation((dto) => ({ id: 'notif-id', ...dto })),
   };
 
   const mockAdminService = {
-    getDashboardStats: jest.fn().mockReturnValue({ totalDevices: 10, totalUsers: 2 }),
+    getDashboardStats: jest
+      .fn()
+      .mockReturnValue({ totalDevices: 10, totalUsers: 2 }),
   };
 
   const mockCloudinaryService = {
-    uploadFile: jest.fn().mockResolvedValue({ secure_url: 'https://cloudinary.com/mock.jpg' }),
+    uploadFile: jest
+      .fn()
+      .mockResolvedValue({ secure_url: 'https://cloudinary.com/mock.jpg' }),
   };
 
   beforeAll(async () => {
@@ -99,10 +143,10 @@ describe('API Routes (e2e)', () => {
           if (!req.user) {
             return false;
           }
-          const requiredRoles = new Reflector().getAllAndOverride<Role[]>(ROLES_KEY, [
-            context.getHandler(),
-            context.getClass(),
-          ]);
+          const requiredRoles = new Reflector().getAllAndOverride<Role[]>(
+            ROLES_KEY,
+            [context.getHandler(), context.getClass()],
+          );
           if (!requiredRoles || requiredRoles.length === 0) {
             return true;
           }
@@ -167,7 +211,11 @@ describe('API Routes (e2e)', () => {
     });
 
     it('PATCH /auth/profile (Authenticated)', () => {
-      currentUser = { userId: 'user-123', email: 'test@example.com', role: Role.VIEWER };
+      currentUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: Role.VIEWER,
+      };
       return request(app.getHttpServer())
         .patch('/auth/profile')
         .send({ firstName: 'Imam', lastName: 'Hossen' })
@@ -189,7 +237,11 @@ describe('API Routes (e2e)', () => {
     });
 
     it('POST /auth/change-password (Authenticated)', () => {
-      currentUser = { userId: 'user-123', email: 'test@example.com', role: Role.VIEWER };
+      currentUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: Role.VIEWER,
+      };
       return request(app.getHttpServer())
         .post('/auth/change-password')
         .send({ oldPassword: 'old', newPassword: 'new' })
@@ -199,7 +251,11 @@ describe('API Routes (e2e)', () => {
 
   describe('User Routes', () => {
     it('GET /users/me (Authenticated)', () => {
-      currentUser = { userId: 'user-123', email: 'test@example.com', role: Role.VIEWER };
+      currentUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: Role.VIEWER,
+      };
       return request(app.getHttpServer())
         .get('/users/me')
         .expect(200)
@@ -209,28 +265,38 @@ describe('API Routes (e2e)', () => {
     });
 
     it('GET /users (Admin Only - Approved)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
-      return request(app.getHttpServer())
-        .get('/users')
-        .expect(200);
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
+      return request(app.getHttpServer()).get('/users').expect(200);
     });
 
     it('GET /users (Viewer - Forbidden)', () => {
-      currentUser = { userId: 'user-123', email: 'test@example.com', role: Role.VIEWER };
-      return request(app.getHttpServer())
-        .get('/users')
-        .expect(403);
+      currentUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: Role.VIEWER,
+      };
+      return request(app.getHttpServer()).get('/users').expect(403);
     });
 
     it('GET /users/:id (Admin)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
-      return request(app.getHttpServer())
-        .get('/users/some-id')
-        .expect(200);
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
+      return request(app.getHttpServer()).get('/users/some-id').expect(200);
     });
 
     it('POST /users (Admin)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
       return request(app.getHttpServer())
         .post('/users')
         .send({ email: 'new@example.com', password: 'pwd', role: Role.VIEWER })
@@ -238,7 +304,11 @@ describe('API Routes (e2e)', () => {
     });
 
     it('PATCH /users/:id (Admin)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
       return request(app.getHttpServer())
         .patch('/users/some-id')
         .send({ role: Role.EDITOR })
@@ -246,23 +316,31 @@ describe('API Routes (e2e)', () => {
     });
 
     it('DELETE /users/:id (Admin)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
-      return request(app.getHttpServer())
-        .delete('/users/some-id')
-        .expect(200);
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
+      return request(app.getHttpServer()).delete('/users/some-id').expect(200);
     });
   });
 
   describe('Category Routes', () => {
     it('GET /categories', () => {
-      currentUser = { userId: 'user-123', email: 'test@example.com', role: Role.VIEWER };
-      return request(app.getHttpServer())
-        .get('/categories')
-        .expect(200);
+      currentUser = {
+        userId: 'user-123',
+        email: 'test@example.com',
+        role: Role.VIEWER,
+      };
+      return request(app.getHttpServer()).get('/categories').expect(200);
     });
 
     it('POST /categories (Editor Allowed)', () => {
-      currentUser = { userId: 'editor-123', email: 'editor@example.com', role: Role.EDITOR };
+      currentUser = {
+        userId: 'editor-123',
+        email: 'editor@example.com',
+        role: Role.EDITOR,
+      };
       return request(app.getHttpServer())
         .post('/categories')
         .send({ name: 'Laptops' })
@@ -270,7 +348,11 @@ describe('API Routes (e2e)', () => {
     });
 
     it('POST /categories (Viewer Forbidden)', () => {
-      currentUser = { userId: 'user-123', email: 'viewer@example.com', role: Role.VIEWER };
+      currentUser = {
+        userId: 'user-123',
+        email: 'viewer@example.com',
+        role: Role.VIEWER,
+      };
       return request(app.getHttpServer())
         .post('/categories')
         .send({ name: 'Laptops' })
@@ -280,14 +362,20 @@ describe('API Routes (e2e)', () => {
 
   describe('Device Routes', () => {
     it('GET /devices', () => {
-      currentUser = { userId: 'user-123', email: 'viewer@example.com', role: Role.VIEWER };
-      return request(app.getHttpServer())
-        .get('/devices')
-        .expect(200);
+      currentUser = {
+        userId: 'user-123',
+        email: 'viewer@example.com',
+        role: Role.VIEWER,
+      };
+      return request(app.getHttpServer()).get('/devices').expect(200);
     });
 
     it('POST /devices (Editor Allowed)', () => {
-      currentUser = { userId: 'editor-123', email: 'editor@example.com', role: Role.EDITOR };
+      currentUser = {
+        userId: 'editor-123',
+        email: 'editor@example.com',
+        role: Role.EDITOR,
+      };
       return request(app.getHttpServer())
         .post('/devices')
         .send({ name: 'MacBook' })
@@ -297,30 +385,40 @@ describe('API Routes (e2e)', () => {
 
   describe('Inventory Log Routes', () => {
     it('GET /inventory-logs (Editor Allowed)', () => {
-      currentUser = { userId: 'editor-123', email: 'editor@example.com', role: Role.EDITOR };
-      return request(app.getHttpServer())
-        .get('/inventory-logs')
-        .expect(200);
+      currentUser = {
+        userId: 'editor-123',
+        email: 'editor@example.com',
+        role: Role.EDITOR,
+      };
+      return request(app.getHttpServer()).get('/inventory-logs').expect(200);
     });
 
     it('GET /inventory-logs (Viewer Forbidden)', () => {
-      currentUser = { userId: 'user-123', email: 'viewer@example.com', role: Role.VIEWER };
-      return request(app.getHttpServer())
-        .get('/inventory-logs')
-        .expect(403);
+      currentUser = {
+        userId: 'user-123',
+        email: 'viewer@example.com',
+        role: Role.VIEWER,
+      };
+      return request(app.getHttpServer()).get('/inventory-logs').expect(403);
     });
   });
 
   describe('Notification Routes', () => {
     it('GET /notifications (Any user)', () => {
-      currentUser = { userId: 'user-123', email: 'viewer@example.com', role: Role.VIEWER };
-      return request(app.getHttpServer())
-        .get('/notifications')
-        .expect(200);
+      currentUser = {
+        userId: 'user-123',
+        email: 'viewer@example.com',
+        role: Role.VIEWER,
+      };
+      return request(app.getHttpServer()).get('/notifications').expect(200);
     });
 
     it('POST /notifications (Admin Only)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
       return request(app.getHttpServer())
         .post('/notifications')
         .send({ userId: 'user-123', message: 'Hello', type: 'INFO' })
@@ -328,7 +426,11 @@ describe('API Routes (e2e)', () => {
     });
 
     it('POST /notifications (Editor Forbidden)', () => {
-      currentUser = { userId: 'editor-123', email: 'editor@example.com', role: Role.EDITOR };
+      currentUser = {
+        userId: 'editor-123',
+        email: 'editor@example.com',
+        role: Role.EDITOR,
+      };
       return request(app.getHttpServer())
         .post('/notifications')
         .send({ userId: 'user-123', message: 'Hello', type: 'INFO' })
@@ -338,17 +440,21 @@ describe('API Routes (e2e)', () => {
 
   describe('Admin Routes', () => {
     it('GET /admin/dashboard (Admin Allowed)', () => {
-      currentUser = { userId: 'admin-123', email: 'admin@example.com', role: Role.ADMIN };
-      return request(app.getHttpServer())
-        .get('/admin/dashboard')
-        .expect(200);
+      currentUser = {
+        userId: 'admin-123',
+        email: 'admin@example.com',
+        role: Role.ADMIN,
+      };
+      return request(app.getHttpServer()).get('/admin/dashboard').expect(200);
     });
 
     it('GET /admin/dashboard (Editor Forbidden)', () => {
-      currentUser = { userId: 'editor-123', email: 'editor@example.com', role: Role.EDITOR };
-      return request(app.getHttpServer())
-        .get('/admin/dashboard')
-        .expect(403);
+      currentUser = {
+        userId: 'editor-123',
+        email: 'editor@example.com',
+        role: Role.EDITOR,
+      };
+      return request(app.getHttpServer()).get('/admin/dashboard').expect(403);
     });
   });
 });

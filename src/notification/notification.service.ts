@@ -16,7 +16,7 @@ export class NotificationService {
       where.isRead = isRead;
     }
 
-    const [total, notifications] = await this.prisma.$transaction([
+    const [total, notifications] = await Promise.all([
       this.prisma.notification.count({ where }),
       this.prisma.notification.findMany({
         where,

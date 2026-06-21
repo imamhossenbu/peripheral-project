@@ -30,7 +30,7 @@ export class InventoryLogService {
       }
     }
 
-    const [total, logs] = await this.prisma.$transaction([
+    const [total, logs] = await Promise.all([
       this.prisma.inventoryLog.count({ where }),
       this.prisma.inventoryLog.findMany({
         where,

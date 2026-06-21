@@ -42,6 +42,13 @@ export class CreateDeviceDto {
   @IsNotEmpty()
   description!: string;
 
+  @Transform(({ value }) => {
+    try {
+      return typeof value === 'string' ? JSON.parse(value) : value;
+    } catch {
+      return value;
+    }
+  })
   @IsObject()
   specifications!: any;
 
@@ -58,6 +65,10 @@ export class CreateDeviceDto {
   @IsString()
   @IsNotEmpty()
   categoryId!: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class UpdateDeviceDto {
@@ -97,6 +108,13 @@ export class UpdateDeviceDto {
   description?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    try {
+      return typeof value === 'string' ? JSON.parse(value) : value;
+    } catch {
+      return value;
+    }
+  })
   @IsObject()
   specifications?: any;
 
@@ -117,6 +135,10 @@ export class UpdateDeviceDto {
   @IsString()
   @IsNotEmpty()
   categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class DeviceQueryDto {

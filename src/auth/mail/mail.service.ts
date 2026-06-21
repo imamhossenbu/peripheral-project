@@ -109,7 +109,7 @@ export class MailService {
   // ===============================
 
   async sendVerificationEmail(email: string, token: string) {
-    const url = `http://localhost:3000/auth/verify?token=${token}`;
+    const url = `http://localhost:4000/auth/verify?token=${token}`;
 
     const content = `
       <tr>
@@ -295,7 +295,7 @@ export class MailService {
   // ===============================
 
   async sendResetPasswordEmail(email: string, token: string) {
-    const url = `http://localhost:3000/auth/reset-password?token=${token}`;
+    const url = `http://localhost:4000/auth/reset-password?token=${token}`;
 
     const content = `
       <tr>
@@ -391,6 +391,4 @@ export class MailService {
     if (error) console.log('Reset Password Email Error:', error);
     else console.log('Reset password email sent:', data?.id);
   }
-
-  
 }
