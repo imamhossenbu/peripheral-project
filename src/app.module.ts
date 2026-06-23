@@ -11,6 +11,8 @@ import { DeviceModule } from './device/device.module';
 import { InventoryLogModule } from './inventory-log/inventory-log.module';
 import { NotificationModule } from './notification/notification.module';
 import { AdminModule } from './admin/admin.module';
+import { OrderModule } from './order/order.module';
+import { PaymentModule } from './payment/payment.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -26,6 +28,8 @@ import { AppService } from './app.service';
     InventoryLogModule,
     NotificationModule,
     AdminModule,
+    OrderModule,
+    PaymentModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,

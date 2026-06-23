@@ -1,10 +1,7 @@
-
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
-
 
 datasource db {
   provider = "postgresql"
@@ -21,6 +18,8 @@ model User {
   imageUrl          String?
   isVerified        Boolean        @default(false)
   verificationToken String?        @unique
+  orders            Order[]
+  payments          Payment[]
   notifications     Notification[]
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -57,6 +56,7 @@ model Device {
   categoryId       String
   category         Category       @relation(fields: [categoryId], references: [id])
   logs             InventoryLog[]
+  orderItems       OrderItem[]
   imageUrl         String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -86,4 +86,92 @@ model Notification {
   isRead    Boolean  @default(false)
   type      String
   createdAt DateTime @default(now())
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  subtotal      Decimal       @default(0)
+  discount      Decimal       @default(0)
+  tax           Decimal       @default(0)
+  total         Decimal       @default(0)
+  notes         String?
+  items         OrderItem[]
+  payments      Payment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  quantity  Int      @default(1)
+  unitPrice Decimal
+  total     Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([deviceId])
+}
+
+model Payment {
+  id            String                   @id @default(cuid())
+  orderId       String
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                     @relation(fields: [userId], references: [id])
+  amount        Decimal
+  method        PaymentMethod
+  status        PaymentTransactionStatus @default(PENDING)
+  transactionId String?                  @unique
+  provider      String?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  MOBILE_BANKING
+  OTHER
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
 }
