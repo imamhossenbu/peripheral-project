@@ -1,33 +1,41 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private resend: Resend;
-  private fromName = 'Pheripheral System';
+  private transporter: nodemailer.Transporter;
+  private fromName = 'Periphex';
   private fromEmail: string;
 
   constructor(private configService: ConfigService) {
-    this.resend = new Resend(this.configService.get<string>('RESEND_API_KEY'));
-    this.fromEmail =
-      this.configService.get<string>('MAIL_FROM') ?? 'onboarding@resend.dev';
+    this.fromEmail = this.configService.get<string>('MAIL_FROM') ?? '';
 
-    console.log('MAIL SERVICE READY (Resend HTTP API)');
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('MAIL_HOST') ?? 'smtp.gmail.com',
+      port: Number(this.configService.get<string>('MAIL_PORT') ?? 587),
+      secure: false,
+      auth: {
+        user: this.configService.get<string>('MAIL_USER'),
+        pass: this.configService.get<string>('MAIL_PASS'),
+      },
+    });
+
+    console.log('MAIL SERVICE READY (Nodemailer)');
   }
 
   // ===============================
   // SHARED TEMPLATE WRAPPER
   // ===============================
 
-  private wrapTemplate(content: string, accentColor = '#534AB7'): string {
+  private wrapTemplate(content: string, accentColor = '#1d4ed8'): string {
     return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      <title>LMS Platform</title>
+      <title>Periphex</title>
     </head>
     <body style="
       margin: 0;
@@ -38,7 +46,6 @@ export class MailService {
       <table width="100%" cellpadding="0" cellspacing="0" style="padding: 40px 16px;">
         <tr>
           <td align="center">
-
             <table width="560" cellpadding="0" cellspacing="0" style="
               max-width: 560px;
               width: 100%;
@@ -47,7 +54,6 @@ export class MailService {
               overflow: hidden;
               border: 1px solid #e4e4e7;
             ">
-
               <!-- TOP ACCENT -->
               <tr>
                 <td style="height: 3px; background: ${accentColor};"></td>
@@ -65,7 +71,7 @@ export class MailService {
                     text-transform: uppercase;
                     padding: 5px 12px;
                     border-radius: 6px;
-                  ">LMS Platform</span>
+                  ">Periphex</span>
                 </td>
               </tr>
 
@@ -85,8 +91,8 @@ export class MailService {
                           line-height: 1.6;
                           text-align: center;
                         ">
-                          © 2026 LMS Platform. All rights reserved.<br/>
-                          You received this because you have an account with us.
+                          © 2026 Periphex. All rights reserved.<br/>
+                          Peripheral Device Management System
                         </p>
                       </td>
                     </tr>
@@ -95,7 +101,6 @@ export class MailService {
               </tr>
 
             </table>
-
           </td>
         </tr>
       </table>
@@ -105,11 +110,29 @@ export class MailService {
   }
 
   // ===============================
+  // SEND HELPER
+  // ===============================
+
+  private async sendMail(to: string, subject: string, html: string) {
+    try {
+      const info = await this.transporter.sendMail({
+        from: `${this.fromName} <${this.fromEmail}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`Email sent to ${to}:`, info.messageId);
+    } catch (error) {
+      console.error(`Failed to send email to ${to}:`, error);
+    }
+  }
+
+  // ===============================
   // VERIFY EMAIL
   // ===============================
 
   async sendVerificationEmail(email: string, token: string) {
-    const url = `http://localhost:4000/auth/verify?token=${token}`;
+    const url = `${this.configService.get('BACKEND_URL') ?? 'http://localhost:4000'}/auth/verify?token=${token}`;
 
     const content = `
       <tr>
@@ -117,7 +140,7 @@ export class MailService {
 
           <div style="
             width: 48px; height: 48px;
-            background: #eeecfe;
+            background: #eff6ff;
             border-radius: 10px;
             font-size: 22px;
             line-height: 48px;
@@ -131,7 +154,7 @@ export class MailService {
             font-size: 22px;
             font-weight: 700;
             line-height: 1.3;
-          ">Verify your email</h1>
+          ">Verify your email address</h1>
 
           <p style="
             margin: 0 0 28px 0;
@@ -139,13 +162,13 @@ export class MailService {
             font-size: 15px;
             line-height: 1.7;
           ">
-            Welcome aboard! Click the button below to confirm your
-            email address and activate your LMS account.
+            Welcome to Periphex! Please verify your email address to
+            activate your account and start managing peripheral devices.
           </p>
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
             <tr>
-              <td style="background: #534AB7; border-radius: 8px;">
+              <td style="background: #1d4ed8; border-radius: 8px;">
                 <a href="${url}" style="
                   display: inline-block;
                   padding: 13px 28px;
@@ -169,7 +192,7 @@ export class MailService {
                 <p style="margin: 0 0 4px 0; color: #a1a1aa; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
                   Or copy this link
                 </p>
-                <p style="margin: 0; color: #534AB7; font-size: 12px; word-break: break-all; font-family: monospace;">
+                <p style="margin: 0; color: #1d4ed8; font-size: 12px; word-break: break-all; font-family: monospace;">
                   ${url}
                 </p>
               </td>
@@ -177,22 +200,18 @@ export class MailService {
           </table>
 
           <p style="margin: 0 0 36px 0; color: #a1a1aa; font-size: 13px; line-height: 1.6;">
-            Didn't create an account? You can safely ignore this email.
+            Didn't create a Periphex account? You can safely ignore this email.
           </p>
 
         </td>
       </tr>
     `;
 
-    const { data, error } = await this.resend.emails.send({
-      from: `${this.fromName} <${this.fromEmail}>`,
-      to: email,
-      subject: 'Verify your email — LMS Platform',
-      html: this.wrapTemplate(content, '#534AB7'),
-    });
-
-    if (error) console.log('Verification Email Error:', error);
-    else console.log('Verification email sent:', data?.id);
+    await this.sendMail(
+      email,
+      'Verify your email — Periphex',
+      this.wrapTemplate(content, '#1d4ed8'),
+    );
   }
 
   // ===============================
@@ -243,7 +262,7 @@ export class MailService {
             font-size: 15px;
             line-height: 1.7;
           ">
-            We noticed a security change on your account. Here's what happened:
+            A security change was made to your Periphex account. Here's what happened:
           </p>
 
           <table width="100%" cellpadding="0" cellspacing="0" style="
@@ -269,7 +288,7 @@ export class MailService {
             <tr>
               <td style="padding: 14px 16px;">
                 <p style="margin: 0; color: #dc2626; font-size: 13px; line-height: 1.6;">
-                  ⚠️ If this wasn't you, please contact our support team immediately and secure your account.
+                  ⚠️ If this wasn't you, contact your system administrator immediately and secure your Periphex account.
                 </p>
               </td>
             </tr>
@@ -279,15 +298,11 @@ export class MailService {
       </tr>
     `;
 
-    const { data, error } = await this.resend.emails.send({
-      from: `LMS Security <${this.fromEmail}>`,
-      to: email,
-      subject: 'Security Alert: Account Activity — LMS Platform',
-      html: this.wrapTemplate(content, '#dc2626'),
-    });
-
-    if (error) console.log('Security Email Error:', error);
-    else console.log('Security email sent:', data?.id);
+    await this.sendMail(
+      email,
+      'Security Alert: Account Activity — Periphex',
+      this.wrapTemplate(content, '#dc2626'),
+    );
   }
 
   // ===============================
@@ -295,7 +310,7 @@ export class MailService {
   // ===============================
 
   async sendResetPasswordEmail(email: string, token: string) {
-    const url = `http://localhost:4000/auth/reset-password?token=${token}`;
+    const url = `${this.configService.get('BACKEND_URL') ?? 'http://localhost:4000'}/auth/reset-password?token=${token}`;
 
     const content = `
       <tr>
@@ -325,8 +340,8 @@ export class MailService {
             font-size: 15px;
             line-height: 1.7;
           ">
-            We received a request to reset the password for your LMS account.
-            Click the button below to choose a new password.
+            We received a request to reset the password for your Periphex account.
+            Click the button below to set a new password.
           </p>
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom: 28px;">
@@ -371,7 +386,7 @@ export class MailService {
             <tr>
               <td style="padding: 14px 16px;">
                 <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.6;">
-                  ⏱ This link will expire in 1 hour. If you didn't request a reset, you can safely ignore this email.
+                  ⏱ This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
                 </p>
               </td>
             </tr>
@@ -381,14 +396,10 @@ export class MailService {
       </tr>
     `;
 
-    const { data, error } = await this.resend.emails.send({
-      from: `LMS Support <${this.fromEmail}>`,
-      to: email,
-      subject: 'Reset your password — LMS Platform',
-      html: this.wrapTemplate(content, '#16a34a'),
-    });
-
-    if (error) console.log('Reset Password Email Error:', error);
-    else console.log('Reset password email sent:', data?.id);
+    await this.sendMail(
+      email,
+      'Reset your password — Periphex',
+      this.wrapTemplate(content, '#16a34a'),
+    );
   }
 }

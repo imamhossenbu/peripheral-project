@@ -21,7 +21,6 @@ import { Role } from '../../generated/prisma';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('devices')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class DeviceController {
   constructor(
     private readonly deviceService: DeviceService,
@@ -39,6 +38,7 @@ export class DeviceController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.EDITOR)
   @UseInterceptors(FileInterceptor('file'))
   async create(
@@ -53,6 +53,7 @@ export class DeviceController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.EDITOR)
   @UseInterceptors(FileInterceptor('file'))
   async update(
@@ -68,6 +69,7 @@ export class DeviceController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.EDITOR)
   async remove(@Param('id') id: string) {
     return this.deviceService.remove(id);

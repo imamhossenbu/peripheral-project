@@ -52,6 +52,12 @@ export class CreatePaymentDto {
   notes?: string;
 }
 
+export class InitSslCommerzPaymentDto {
+  @IsString()
+  @IsNotEmpty()
+  orderId!: string;
+}
+
 export class UpdatePaymentDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
