@@ -23,6 +23,7 @@ model User {
   notifications     Notification[]
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+  borrowRequests BorrowRequest[]
 }
 
 enum Role {
@@ -57,9 +58,34 @@ model Device {
   category         Category       @relation(fields: [categoryId], references: [id])
   logs             InventoryLog[]
   orderItems       OrderItem[]
+  stock          Int            @default(1)  
+  borrowRequests BorrowRequest[]
   imageUrl         String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+}
+
+model BorrowRequest {
+  id          String        @id @default(cuid())
+  deviceId    String
+  userId      String
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  status      BorrowStatus  @default(PENDING)
+  adminNote   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  device      Device        @relation(fields: [deviceId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+}
+
+enum BorrowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
 }
 
 enum Status {

@@ -15,6 +15,7 @@ import { OrderModule } from './order/order.module';
 import { PaymentModule } from './payment/payment.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { BorrowRequestModule } from './borrow-request/borrow-request.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AppService } from './app.service';
     NotificationModule,
     AdminModule,
     OrderModule,
+    BorrowRequestModule,
     PaymentModule,
     JwtModule.register({
       global: true,
