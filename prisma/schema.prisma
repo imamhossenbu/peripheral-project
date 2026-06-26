@@ -110,6 +110,7 @@ model User {
   reviews           DeviceReview[]
   fines             Fine[]
   trackingUpdates OrderTracking[]
+  sentOrderMessages OrderMessage[]
 }
 
 // ─── CATEGORY ─────────────────────────────────────────────
@@ -321,6 +322,8 @@ model Order {
   items         OrderItem[]
   trackingUpdates  OrderTracking[]
   payments      Payment[]
+  
+messages OrderMessage[]
   invoice       Invoice?
 
   @@index([userId])
@@ -353,6 +356,19 @@ model OrderTracking {
   @@index([orderId, recordedAt])
 }
 
+
+model OrderMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  senderId  String
+  message   String
+  createdAt DateTime @default(now())
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sender    User     @relation(fields: [senderId], references: [id])
+
+  @@index([orderId, createdAt])
+}
 
 model OrderItem {
   id        String   @id @default(cuid())

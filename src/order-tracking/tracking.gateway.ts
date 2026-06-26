@@ -10,9 +10,12 @@ import {
 } from '@nestjs/websockets';
 import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { WsAuthPayload, WsJwtAuthGuard } from '../auth/guard/ws-jwt-auth.guard';
+
+import { WsJwtAuthGuard, WsAuthPayload } from '../auth/guard/ws-jwt-auth.guard';
 import { OrderTrackingService } from './tracking.service';
+import { OrderMessageService } from '../order-message/order-message.service';
 import { PushLocationDto } from './dto/tracking.dto';
+import { SendOrderMessageDto } from '../order-message/dto/order-message.dto';
 
 
 type AuthedSocket = Socket & { data: { user?: WsAuthPayload } };
@@ -31,7 +34,10 @@ export class OrderTrackingGateway
   @WebSocketServer()
   server!: Server;
 
-  constructor(private trackingService: OrderTrackingService) {}
+  constructor(
+    private trackingService: OrderTrackingService,
+    private messageService: OrderMessageService,
+  ) {}
 
   handleConnection(client: AuthedSocket) {
     // Connection accept hoy, kintu kono room e join hoy na jotokhon na
@@ -43,8 +49,7 @@ export class OrderTrackingGateway
   }
 
   // ── Student/Admin: ekta order er live update e subscribe korbe ──────
-  @UseGuards(WsJwtAuthGuard
-  )
+  @UseGuards(WsJwtAuthGuard)
   @SubscribeMessage('subscribeToOrder')
   async handleSubscribe(
     @MessageBody() data: { orderId: string },
@@ -67,9 +72,18 @@ export class OrderTrackingGateway
 
     client.join(roomFor(data.orderId));
 
-    // Subscribe korar shathe shathe current location (jodi thake) pathiye dao
-    const current = await this.trackingService.getCurrentLocation(data.orderId);
-    return { event: 'subscribed', orderId: data.orderId, current };
+    // Subscribe korar shathe shathe current location + chat history pathiye dao
+    const [current, messages] = await Promise.all([
+      this.trackingService.getCurrentLocation(data.orderId),
+      this.messageService.getHistory(data.orderId),
+    ]);
+
+    return {
+      event: 'subscribed',
+      orderId: data.orderId,
+      current,
+      messages,
+    };
   }
 
   @SubscribeMessage('unsubscribeFromOrder')
@@ -116,5 +130,45 @@ export class OrderTrackingGateway
     });
 
     return { event: 'locationPushed', trackingId: tracking.id };
+  }
+
+  // ── Student/Staff/Admin: order-tracking page er chat ─────────────────
+  @UseGuards(WsJwtAuthGuard)
+  @SubscribeMessage('sendMessage')
+  async handleSendMessage(
+    @MessageBody() data: SendOrderMessageDto,
+    @ConnectedSocket() client: AuthedSocket,
+  ) {
+    const user = client.data.user;
+    if (!user) {
+      throw new WsException('Unauthorized');
+    }
+
+    if (user.role === 'STUDENT') {
+      const owns = await this.trackingService.verifyOwnership(
+        data.orderId,
+        user.userId,
+      );
+      if (!owns) {
+        throw new WsException('You can only message about your own orders');
+      }
+    }
+
+    const trimmed = data.message?.trim();
+    if (!trimmed) {
+      throw new WsException('Message cannot be empty');
+    }
+
+    const saved = await this.messageService.sendMessage({
+      orderId: data.orderId,
+      senderId: user.userId,
+      message: trimmed,
+    });
+
+    // Room e shobaike broadcast koro (sender shoho — UI te nijer message-o
+    // ekhane theke render korte parbe, alada local echo na lagiye)
+    this.server.to(roomFor(data.orderId)).emit('newMessage', saved);
+
+    return { event: 'messageSent', messageId: saved.id };
   }
 }

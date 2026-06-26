@@ -6,14 +6,22 @@
 
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
+
 import { WsJwtAuthGuard } from '../auth/guard/ws-jwt-auth.guard';
-import { OrderTrackingController } from './tracking.controller';
 import { OrderTrackingGateway } from './tracking.gateway';
 import { OrderTrackingService } from './tracking.service';
+import { OrderMessageService } from '../order-message/order-message.service';
+import { OrderTrackingController } from './tracking.controller';
+import { OrderMessageController } from '../order-message/order-message.controller';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [OrderTrackingController],
-  providers: [OrderTrackingGateway, OrderTrackingService, WsJwtAuthGuard],
+  controllers: [OrderTrackingController, OrderMessageController],
+  providers: [
+    OrderTrackingGateway,
+    OrderTrackingService,
+    OrderMessageService,
+    WsJwtAuthGuard,
+  ],
 })
 export class OrderTrackingModule {}
