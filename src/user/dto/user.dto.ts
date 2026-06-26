@@ -7,6 +7,7 @@ import {
   IsBoolean,
   IsInt,
   Min,
+  IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Role } from '../../../generated/prisma';
@@ -98,4 +99,12 @@ export class UserQueryDto {
   })
   @IsBoolean()
   isVerified?: boolean;
+
+  @IsOptional()
+  @IsIn(['createdAt', 'email', 'firstName', 'lastName'])
+  sortBy: string = 'createdAt';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  sortOrder: 'asc' | 'desc' = 'desc';
 }

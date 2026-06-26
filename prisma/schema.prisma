@@ -11,8 +11,8 @@ datasource db {
 
 enum Role {
   ADMIN
-  EDITOR
-  VIEWER
+  STAFF
+  STUDENT
 }
 
 enum Status {
@@ -90,7 +90,7 @@ model User {
   id                String          @id @default(cuid())
   email             String          @unique
   password          String
-  role              Role            @default(VIEWER)
+  role              Role            @default(STUDENT)
   firstName         String?
   lastName          String?
   department        String?
@@ -99,6 +99,8 @@ model User {
   verificationToken String?         @unique
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  resetPasswordToken   String?   @unique
+  resetPasswordExpiry  DateTime?
 
   orders            Order[]
   payments          Payment[]
@@ -176,7 +178,7 @@ model DeviceVariant {
 
   device         Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   borrowRequests BorrowRequest[]
-  orderItems     OrderItem[]     // ← এটা missing ছিল
+  orderItems     OrderItem[]     
   bookings       DeviceBooking[]
 }
 

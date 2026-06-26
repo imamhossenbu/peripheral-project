@@ -5,80 +5,124 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto, UserQueryDto } from './dto/user.dto';
+import { Prisma } from '../../generated/prisma';
 import * as bcrypt from 'bcrypt';
+
+type SafeUser = Omit<
+  Prisma.UserGetPayload<Record<string, never>>,
+  | 'password'
+  | 'verificationToken'
+  | 'resetPasswordToken'
+  | 'resetPasswordExpiry'
+>;
 
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) {}
 
-  private excludePassword(user: any) {
-    if (!user) return null;
-    const { password, verificationToken, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+  private sanitize(user: any): SafeUser {
+    if (!user) return null as any;
+    const {
+      password,
+      verificationToken,
+      resetPasswordToken,
+      resetPasswordExpiry,
+      ...safe
+    } = user;
+    return safe;
   }
+
+  // ─── Find All (paginated, filtered, sorted) ─────────────────
   async findAll(query: UserQueryDto) {
-    const { page, limit, search, role, isVerified } = query;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      role,
+      isVerified,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
 
-    const currentPage = page || 1;
-    const currentLimit = limit || 10;
-    const skip = (currentPage - 1) * currentLimit;
+    const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {
+      ...(role && { role }),
+      ...(isVerified !== undefined && { isVerified }),
+      ...(search && {
+        OR: [
+          { email: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { department: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
 
-    if (role) {
-      where.role = role;
-    }
-
-    if (isVerified !== undefined) {
-      where.isVerified = isVerified;
-    }
-
-    if (search) {
-      where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { department: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const total = await this.prisma.user.count({ where });
-
-    const users = await this.prisma.user.findMany({
-      where,
-      skip,
-      take: currentLimit,
-      orderBy: { createdAt: 'desc' },
-    });
+    const [total, users] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+        // sensitive fields select থেকে বাদ
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+          department: true,
+          imageUrl: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    ]);
 
     return {
-      data: users.map((u) => this.excludePassword(u)),
+      data: users,
       meta: {
         total,
-        page: currentPage,
-        limit: currentLimit,
-        totalPages: Math.ceil(total / currentLimit),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
     };
   }
 
-  async findOne(id: string) {
+  // ─── Find One ───────────────────────────────────────────────
+  async findOne(id: string): Promise<SafeUser> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        department: true,
+        imageUrl: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-    return this.excludePassword(user);
+
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+    return user;
   }
 
-  async create(dto: CreateUserDto) {
+  // ─── Create ─────────────────────────────────────────────────
+  async create(dto: CreateUserDto): Promise<SafeUser> {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (existing) {
-      throw new BadRequestException('Email already exists');
-    }
+    if (existing) throw new BadRequestException('Email already exists');
 
     const hash = await bcrypt.hash(dto.password, 10);
 
@@ -86,56 +130,72 @@ export class UserService {
       data: {
         ...dto,
         password: hash,
-        isVerified: dto.isVerified ?? true, // admin created users default to verified
+        isVerified: dto.isVerified ?? true, // admin তৈরি করলে default verified
       },
     });
 
-    return this.excludePassword(user);
+    return this.sanitize(user);
   }
 
-  async update(id: string, dto: UpdateUserDto) {
-    // Check if user exists
-    await this.findOne(id);
-
+  // ─── Update ─────────────────────────────────────────────────
+  async update(id: string, dto: UpdateUserDto): Promise<SafeUser> {
+    // email unique check (নিজের email বাদে)
     if (dto.email) {
       const existing = await this.prisma.user.findUnique({
         where: { email: dto.email },
       });
       if (existing && existing.id !== id) {
-        throw new BadRequestException('Email already in use by another user');
+        throw new BadRequestException('Email already in use');
       }
     }
 
-    const updateData: any = { ...dto };
+    const updateData: Prisma.UserUpdateInput = { ...dto };
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data: updateData,
-    });
-
-    return this.excludePassword(updated);
+    try {
+      const updated = await this.prisma.user.update({
+        where: { id },
+        data: updateData,
+      });
+      return this.sanitize(updated);
+    } catch (e: any) {
+      // Prisma P2025 = record not found
+      if (e?.code === 'P2025') {
+        throw new NotFoundException(`User #${id} not found`);
+      }
+      throw e;
+    }
   }
 
+  // ─── Delete ─────────────────────────────────────────────────
   async remove(id: string) {
-    // Check if user exists
-    await this.findOne(id);
+    // user আছে কিনা check
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException(`User #${id} not found`);
 
-    // Delete related notifications first
-    await this.prisma.notification.deleteMany({
-      where: { userId: id },
-    });
+    // Schema তে cascade delete নেই এমন relations আগে মুছতে হবে।
+    // Prisma schema তে onDelete: Cascade থাকলে automatically হবে।
+    // যেগুলোতে নেই সেগুলো manually:
+    await this.prisma.$transaction([
+      this.prisma.notification.deleteMany({ where: { userId: id } }),
+      // Fine এ userId foreign key আছে, cascade নেই schema তে
+      this.prisma.fine.deleteMany({ where: { userId: id } }),
+      // BorrowRequest এ cascade নেই
+      this.prisma.borrowRequest.deleteMany({ where: { userId: id } }),
+      // Payment এ cascade নেই
+      this.prisma.payment.deleteMany({ where: { userId: id } }),
+      // DeviceReview
+      this.prisma.deviceReview.deleteMany({ where: { userId: id } }),
+      // Invoice
+      this.prisma.invoice.deleteMany({ where: { userId: id } }),
+      // Order (OrderItem এ cascade আছে)
+      this.prisma.order.deleteMany({ where: { userId: id } }),
+      // সবশেষে user
+      this.prisma.user.delete({ where: { id } }),
+    ]);
 
-    // Delete user
-    const deleted = await this.prisma.user.delete({
-      where: { id },
-    });
-
-    return {
-      message: 'User deleted successfully',
-      id: deleted.id,
-    };
+    return { message: 'User deleted successfully', id };
   }
 }

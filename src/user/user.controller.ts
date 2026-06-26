@@ -9,6 +9,9 @@ import {
   Query,
   UseGuards,
   Req,
+  ForbiddenException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { UserService } from './user.service';
@@ -18,56 +21,67 @@ import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
 import { Role } from '../../generated/prisma';
 
+interface AuthRequest extends Request {
+  user: { userId: string; email: string; role: Role };
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-
-
-  // get my profile
+  // ─── যেকোনো logged-in user নিজের profile দেখতে পারবে ──────
   @Get('me')
-  async getProfile(@Req() req: Request & { user: { userId: string } }) {
+  getProfile(@Req() req: AuthRequest) {
     return this.userService.findOne(req.user.userId);
   }
 
-
-
-  // get all user for admin panel
+  // ─── ADMIN: সব user list ────────────────────────────────────
   @Get()
   @Roles(Role.ADMIN)
-  async findAll(@Query() query: UserQueryDto) {
+  findAll(@Query() query: UserQueryDto) {
     return this.userService.findAll(query);
   }
 
-
-  // get a single user by id for admin panel
+  // ─── ADMIN: যেকোনো user এর profile ────────────────────────
+  // NOTE: 'me' এর পরে এই route, নাহলে 'me' কে id হিসেবে নেবে
   @Get(':id')
   @Roles(Role.ADMIN)
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
-
-
-  // create, update, delete user for admin panel
+  // ─── ADMIN: নতুন user তৈরি ──────────────────────────────────
   @Post()
   @Roles(Role.ADMIN)
-  async create(@Body() dto: CreateUserDto) {
+  create(@Body() dto: CreateUserDto) {
     return this.userService.create(dto);
   }
 
-
-  
+  // ─── ADMIN: user update ─────────────────────────────────────
   @Patch(':id')
   @Roles(Role.ADMIN)
-  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  update(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    // Admin নিজের role নিজে change করতে পারবে না
+    if (id === req.user.userId && dto.role && dto.role !== req.user.role) {
+      throw new ForbiddenException('You cannot change your own role');
+    }
     return this.userService.update(id, dto);
   }
 
+  // ─── ADMIN: user delete ─────────────────────────────────────
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id') id: string) {
+  @HttpCode(HttpStatus.OK)
+  remove(@Req() req: AuthRequest, @Param('id') id: string) {
+    // Admin নিজেকে delete করতে পারবে না
+    if (id === req.user.userId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
     return this.userService.remove(id);
   }
 }
