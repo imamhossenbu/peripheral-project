@@ -16,6 +16,7 @@ import { PaymentModule } from './payment/payment.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BorrowRequestModule } from './borrow-request/borrow-request.module';
+import { DeviceChatModule } from './device-chat/device-chat.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { BorrowRequestModule } from './borrow-request/borrow-request.module';
     AdminModule,
     OrderModule,
     BorrowRequestModule,
+    DeviceChatModule,
     PaymentModule,
     JwtModule.register({
       global: true,

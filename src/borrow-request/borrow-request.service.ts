@@ -127,7 +127,9 @@ export class BorrowRequestService {
         },
         include: {
           device: true,
-          user: { select: { id: true, name: true, email: true } },
+          user: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
       });
 
@@ -141,7 +143,7 @@ export class BorrowRequestService {
         await tx.notification.createMany({
           data: admins.map((admin) => ({
             userId: admin.id,
-            message: `New borrow request for "${device.name}" from ${request.user.name}. Reason: ${dto.reason}`,
+            message: `New borrow request for "${device.name}" from ${request.user.firstName} ${request.user.lastName}. Reason: ${dto.reason}`,
             type: 'BORROW_REQUEST',
           })),
         });
@@ -209,7 +211,7 @@ export class BorrowRequestService {
           data: {
             deviceId: request.deviceId,
             action: 'BORROW',
-            remarks: `Borrowed by user ${request.user.name} (${request.userId}). Return expected: ${request.endDate.toDateString()}.`,
+            remarks: `Borrowed by user ${request.user.firstName} ${request.user.lastName} (${request.userId}). Return expected: ${request.endDate.toDateString()}.`,
           },
         });
       }

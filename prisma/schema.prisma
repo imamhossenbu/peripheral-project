@@ -7,85 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id                String         @id @default(cuid())
-  email             String         @unique
-  password          String
-  role              Role           @default(VIEWER)
-  firstName         String?
-  lastName          String?
-  department        String?
-  imageUrl          String?
-  isVerified        Boolean        @default(false)
-  verificationToken String?        @unique
-  orders            Order[]
-  payments          Payment[]
-  notifications     Notification[]
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  borrowRequests BorrowRequest[]
-}
+// ─── ENUMS ────────────────────────────────────────────────
 
 enum Role {
   ADMIN
   EDITOR
   VIEWER
-}
-
-model Category {
-  id            String     @id @default(cuid())
-  name          String
-  parentId      String?
-  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
-  subCategories Category[] @relation("SubCategories")
-  devices       Device[]
-}
-
-model Device {
-  id               String         @id @default(cuid())
-  name             String
-  brand            String
-  model            String
-  serialNumber     String         @unique
-  price            Decimal
-  status           Status         @default(AVAILABLE)
-  description      String
-  specifications   Json
-  workingPrinciple String         @db.Text
-  purchaseDate     DateTime
-  warrantyExpiry   DateTime
-  categoryId       String
-  category         Category       @relation(fields: [categoryId], references: [id])
-  logs             InventoryLog[]
-  orderItems       OrderItem[]
-  stock          Int            @default(1)  
-  borrowRequests BorrowRequest[]
-  imageUrl         String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-}
-
-model BorrowRequest {
-  id          String        @id @default(cuid())
-  deviceId    String
-  userId      String
-  startDate   DateTime
-  endDate     DateTime
-  reason      String
-  status      BorrowStatus  @default(PENDING)
-  adminNote   String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  device      Device        @relation(fields: [deviceId], references: [id])
-  user        User          @relation(fields: [userId], references: [id])
-}
-
-enum BorrowStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  RETURNED
 }
 
 enum Status {
@@ -95,82 +22,25 @@ enum Status {
   RETIRED
 }
 
-model InventoryLog {
-  id          String   @id @default(cuid())
-  deviceId    String
-  device      Device   @relation(fields: [deviceId], references: [id])
-  action      String
-  remarks     String?
-  performedAt DateTime @default(now())
+enum BorrowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
 }
 
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  message   String
-  isRead    Boolean  @default(false)
-  type      String
-  createdAt DateTime @default(now())
+enum ExtensionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
-model Order {
-  id            String        @id @default(cuid())
-  orderNumber   String        @unique
-  userId        String
-  user          User          @relation(fields: [userId], references: [id])
-  status        OrderStatus   @default(PENDING)
-  paymentStatus PaymentStatus @default(UNPAID)
-  subtotal      Decimal       @default(0)
-  discount      Decimal       @default(0)
-  tax           Decimal       @default(0)
-  total         Decimal       @default(0)
-  notes         String?
-  items         OrderItem[]
-  payments      Payment[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  @@index([userId])
-  @@index([status])
-  @@index([paymentStatus])
-}
-
-model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  deviceId  String
-  device    Device   @relation(fields: [deviceId], references: [id])
-  quantity  Int      @default(1)
-  unitPrice Decimal
-  total     Decimal
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([orderId])
-  @@index([deviceId])
-}
-
-model Payment {
-  id            String                   @id @default(cuid())
-  orderId       String
-  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User                     @relation(fields: [userId], references: [id])
-  amount        Decimal
-  method        PaymentMethod
-  status        PaymentTransactionStatus @default(PENDING)
-  transactionId String?                  @unique
-  provider      String?
-  paidAt        DateTime?
-  notes         String?
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-
-  @@index([orderId])
-  @@index([userId])
-  @@index([status])
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
+  OVERDUE
 }
 
 enum OrderStatus {
@@ -200,4 +70,337 @@ enum PaymentTransactionStatus {
   SUCCESS
   FAILED
   REFUNDED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FineStatus {
+  UNPAID
+  PAID
+  WAIVED
+}
+
+// ─── USER ─────────────────────────────────────────────────
+
+model User {
+  id                String          @id @default(cuid())
+  email             String          @unique
+  password          String
+  role              Role            @default(VIEWER)
+  firstName         String?
+  lastName          String?
+  department        String?
+  imageUrl          String?
+  isVerified        Boolean         @default(false)
+  verificationToken String?         @unique
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  orders            Order[]
+  payments          Payment[]
+  notifications     Notification[]
+  borrowRequests    BorrowRequest[]
+  invoices          Invoice[]
+  reviews           DeviceReview[]
+  fines             Fine[]
+}
+
+// ─── CATEGORY ─────────────────────────────────────────────
+
+model Category {
+  id            String     @id @default(cuid())
+  name          String
+  parentId      String?
+  parent        Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  subCategories Category[] @relation("SubCategories")
+  devices       Device[]
+}
+
+// ─── DEVICE ───────────────────────────────────────────────
+
+model Device {
+  id               String          @id @default(cuid())
+  name             String
+  brand            String
+  model            String
+  serialNumber     String          @unique
+  price            Decimal
+  status           Status          @default(AVAILABLE)
+  description      String
+  specifications   Json
+  workingPrinciple String          @db.Text
+  purchaseDate     DateTime
+  warrantyExpiry   DateTime
+  categoryId       String
+  qrCodeUrl        String?         // generated QR, Cloudinary তে store
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  category         Category        @relation(fields: [categoryId], references: [id])
+  images           DeviceImage[]
+  variants         DeviceVariant[]
+  logs             InventoryLog[]
+  orderItems       OrderItem[]
+  borrowRequests   BorrowRequest[]
+  reviews          DeviceReview[]
+  bookings         DeviceBooking[]
+}
+
+model DeviceImage {
+  id        String   @id @default(cuid())
+  deviceId  String
+  url       String
+  isPrimary Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model DeviceVariant {
+  id             String   @id @default(cuid())
+  deviceId       String
+  name           String
+  sku            String?  @unique
+  price          Decimal?
+  stock          Int      @default(0)
+  specifications Json?
+  imageUrl       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  device         Device          @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  borrowRequests BorrowRequest[]
+  orderItems     OrderItem[]     // ← এটা missing ছিল
+  bookings       DeviceBooking[]
+}
+
+// ─── BORROW REQUEST ───────────────────────────────────────
+
+model BorrowRequest {
+  id          String       @id @default(cuid())
+  deviceId    String
+  userId      String
+  variantId   String?
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  status      BorrowStatus @default(PENDING)
+  adminNote   String?
+  returnedAt  DateTime?    // actual return time track
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  device      Device         @relation(fields: [deviceId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+  variant     DeviceVariant? @relation(fields: [variantId], references: [id])
+  extensions  BorrowExtension[]
+  fine        Fine?          // late return হলে fine
+}
+
+model BorrowExtension {
+  id              String          @id @default(cuid())
+  borrowRequestId String
+  requestedEndDate DateTime       // নতুন যে date চাইছে
+  reason          String
+  status          ExtensionStatus @default(PENDING)
+  adminNote       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  borrowRequest   BorrowRequest   @relation(fields: [borrowRequestId], references: [id], onDelete: Cascade)
+}
+
+// ─── FINE / PENALTY ───────────────────────────────────────
+
+model Fine {
+  id              String     @id @default(cuid())
+  borrowRequestId String     @unique  // একটা borrow এ একটাই fine
+  userId          String
+  amount          Decimal
+  reason          String     // e.g. "Late return: 3 days overdue"
+  status          FineStatus @default(UNPAID)
+  paidAt          DateTime?
+  waivedBy        String?    // admin id যে waive করেছে
+  waivedAt        DateTime?
+  waivedReason    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  borrowRequest   BorrowRequest @relation(fields: [borrowRequestId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+}
+
+// ─── DEVICE REVIEW ────────────────────────────────────────
+
+model DeviceReview {
+  id              String       @id @default(cuid())
+  deviceId        String
+  userId          String
+  borrowRequestId String       @unique  // শুধু যে borrow করেছে সে review দিতে পারবে
+  rating          Int          // 1-5
+  comment         String?
+  status          ReviewStatus @default(PENDING) // admin moderate করবে
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  device          Device       @relation(fields: [deviceId], references: [id])
+  user            User         @relation(fields: [userId], references: [id])
+
+  @@unique([userId, borrowRequestId]) // একটা borrow এ একটাই review
+}
+
+// ─── DEVICE BOOKING CALENDAR ──────────────────────────────
+
+model DeviceBooking {
+  id        String   @id @default(cuid())
+  deviceId  String
+  variantId String?
+  userId    String?  // null = system block (maintenance etc.)
+  startDate DateTime
+  endDate   DateTime
+  note      String?
+  createdAt DateTime @default(now())
+
+  device    Device         @relation(fields: [deviceId], references: [id])
+  variant   DeviceVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([deviceId, startDate, endDate]) // availability query fast করবে
+}
+
+// ─── INVENTORY LOG ────────────────────────────────────────
+
+model InventoryLog {
+  id          String   @id @default(cuid())
+  deviceId    String
+  action      String
+  remarks     String?
+  performedAt DateTime @default(now())
+
+  device      Device   @relation(fields: [deviceId], references: [id])
+}
+
+// ─── NOTIFICATION ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// ─── ORDER ────────────────────────────────────────────────
+
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  userId        String
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  subtotal      Decimal       @default(0)
+  discount      Decimal       @default(0)
+  tax           Decimal       @default(0)
+  total         Decimal       @default(0)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+  payments      Payment[]
+  invoice       Invoice?
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  deviceId  String
+  variantId String?
+  quantity  Int      @default(1)
+  unitPrice Decimal
+  total     Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  device    Device         @relation(fields: [deviceId], references: [id])
+  variant   DeviceVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([deviceId])
+}
+
+// ─── INVOICE ──────────────────────────────────────────────
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  orderId       String        @unique
+  userId        String
+  subtotal      Decimal
+  discount      Decimal       @default(0)
+  tax           Decimal       @default(0)
+  total         Decimal
+  status        InvoiceStatus @default(ISSUED)
+  issuedAt      DateTime      @default(now())
+  dueDate       DateTime?
+  paidAt        DateTime?
+  notes         String?
+  pdfUrl        String?
+
+  order         Order         @relation(fields: [orderId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  items         InvoiceItem[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  deviceName  String
+  variantName String?
+  quantity    Int
+  unitPrice   Decimal
+  total       Decimal
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// ─── PAYMENT ──────────────────────────────────────────────
+
+model Payment {
+  id            String                   @id @default(cuid())
+  orderId       String
+  userId        String
+  amount        Decimal
+  method        PaymentMethod
+  status        PaymentTransactionStatus @default(PENDING)
+  transactionId String?                  @unique
+  provider      String?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user          User                     @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
 }
