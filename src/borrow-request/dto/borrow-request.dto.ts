@@ -16,6 +16,10 @@ export class CreateBorrowRequestDto {
   @IsNotEmpty()
   deviceId!: string;
 
+  @IsOptional()
+  @IsString()
+  variantId?: string;
+
   @IsDateString()
   startDate!: string;
 

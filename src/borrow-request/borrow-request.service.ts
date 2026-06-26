@@ -31,7 +31,7 @@ export class BorrowRequestService {
         where,
         skip,
         take: limit,
-        include: { device: { include: { category: true } } },
+        include: { device: { include: { category: true } }, variant: true },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
@@ -60,7 +60,10 @@ export class BorrowRequestService {
         take: limit,
         include: {
           device: { include: { category: true } },
-          user: { select: { id: true, name: true, email: true } },
+          variant: true,
+          user: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -93,24 +96,44 @@ export class BorrowRequestService {
       throw new NotFoundException(`Device with ID ${dto.deviceId} not found`);
     }
 
-    // Stock আছে কিনা check
-    if (device.stock <= 0) {
-      throw new BadRequestException(
-        `Device "${device.name}" is currently out of stock`,
-      );
+    // Variant দেওয়া থাকলে exist করে কিনা ও stock check
+    if (dto.variantId) {
+      const variant = await this.prisma.deviceVariant.findUnique({
+        where: { id: dto.variantId },
+      });
+      if (!variant) {
+        throw new NotFoundException(
+          `Variant with ID ${dto.variantId} not found`,
+        );
+      }
+      if (variant.deviceId !== dto.deviceId) {
+        throw new BadRequestException(
+          'Variant does not belong to the specified device',
+        );
+      }
+      if (variant.stock <= 0) {
+        throw new BadRequestException(
+          `Variant "${variant.name}" is currently out of stock`,
+        );
+      }
     }
+    // NOTE: no variantId provided -> stock not enforced (Device has no stock field)
 
-    // Same device এ same user এর pending/approved request আছে কিনা
-    const conflicting = await this.prisma.borrowRequest.findFirst({
+    // Date-overlap check against DeviceBooking for this device/variant
+    const overlapping = await this.prisma.deviceBooking.findFirst({
       where: {
-        userId,
         deviceId: dto.deviceId,
-        status: { in: [BorrowStatus.PENDING, BorrowStatus.APPROVED] },
+        startDate: { lt: end },
+        endDate: { gt: start },
+        OR: [
+          { variantId: null }, // device-level booking blocks all variants
+          ...(dto.variantId ? [{ variantId: dto.variantId }] : []),
+        ],
       },
     });
-    if (conflicting) {
+    if (overlapping) {
       throw new BadRequestException(
-        'You already have an active or pending request for this device',
+        `Device "${device.name}" is already booked for an overlapping period`,
       );
     }
 
@@ -120,6 +143,7 @@ export class BorrowRequestService {
         data: {
           userId,
           deviceId: dto.deviceId,
+          variantId: dto.variantId,
           startDate: start,
           endDate: end,
           reason: dto.reason,
@@ -127,6 +151,7 @@ export class BorrowRequestService {
         },
         include: {
           device: true,
+          variant: true,
           user: {
             select: { id: true, firstName: true, lastName: true, email: true },
           },
@@ -161,7 +186,7 @@ export class BorrowRequestService {
   ) {
     const request = await this.prisma.borrowRequest.findUnique({
       where: { id: requestId },
-      include: { device: true, user: true },
+      include: { device: true, variant: true, user: true },
     });
 
     if (!request) {
@@ -194,16 +219,51 @@ export class BorrowRequestService {
       });
 
       if (dto.status === BorrowStatus.APPROVED) {
-        // Stock কমাও
-        if (request.device.stock <= 0) {
+        // Re-check overlap at approval time too (another request could've been
+        // approved for an overlapping window between create() and now)
+        const overlapping = await tx.deviceBooking.findFirst({
+          where: {
+            deviceId: request.deviceId,
+            startDate: { lt: request.endDate },
+            endDate: { gt: request.startDate },
+            OR: [
+              { variantId: null },
+              ...(request.variantId ? [{ variantId: request.variantId }] : []),
+            ],
+          },
+        });
+        if (overlapping) {
           throw new BadRequestException(
-            `Cannot approve: "${request.device.name}" is now out of stock`,
+            `Cannot approve: "${request.device.name}" is already booked for an overlapping period`,
           );
         }
 
-        await tx.device.update({
-          where: { id: request.deviceId },
-          data: { stock: { decrement: 1 } },
+        // Variant stock কমাও (যদি variant দেওয়া থাকে)
+        if (request.variantId) {
+          const variant = await tx.deviceVariant.findUnique({
+            where: { id: request.variantId },
+          });
+          if (!variant || variant.stock <= 0) {
+            throw new BadRequestException(
+              `Cannot approve: "${request.device.name}" variant is now out of stock`,
+            );
+          }
+          await tx.deviceVariant.update({
+            where: { id: request.variantId },
+            data: { stock: { decrement: 1 } },
+          });
+        }
+
+        // Booking calendar এ entry করো
+        await tx.deviceBooking.create({
+          data: {
+            deviceId: request.deviceId,
+            variantId: request.variantId,
+            userId: request.userId,
+            startDate: request.startDate,
+            endDate: request.endDate,
+            note: `Borrow request ${request.id}`,
+          },
         });
 
         // Inventory log
@@ -217,6 +277,10 @@ export class BorrowRequestService {
       }
 
       // Student কে notification পাঠাও
+      const notifType =
+        dto.status === BorrowStatus.APPROVED
+          ? 'BORROW_APPROVED'
+          : 'BORROW_REJECTED';
       const statusText =
         dto.status === BorrowStatus.APPROVED ? 'approved' : 'rejected';
       const noteText = dto.adminNote ? ` Admin note: ${dto.adminNote}` : '';
@@ -225,7 +289,7 @@ export class BorrowRequestService {
         data: {
           userId: request.userId,
           message: `Your borrow request for "${request.device.name}" has been ${statusText}.${noteText}`,
-          type: 'BORROW_REVIEW',
+          type: notifType,
         },
       });
 
@@ -237,7 +301,7 @@ export class BorrowRequestService {
   async returnDevice(userId: string, requestId: string) {
     const request = await this.prisma.borrowRequest.findUnique({
       where: { id: requestId },
-      include: { device: true },
+      include: { device: true, variant: true },
     });
 
     if (!request) {
@@ -255,17 +319,21 @@ export class BorrowRequestService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Status RETURNED করো
+      const returnedAt = new Date();
+
+      // Status RETURNED করো + returnedAt set করো
       const updated = await tx.borrowRequest.update({
         where: { id: requestId },
-        data: { status: BorrowStatus.RETURNED },
+        data: { status: BorrowStatus.RETURNED, returnedAt },
       });
 
-      // Stock বাড়াও
-      await tx.device.update({
-        where: { id: request.deviceId },
-        data: { stock: { increment: 1 } },
-      });
+      // Variant stock বাড়াও (যদি variant দেওয়া থাকে)
+      if (request.variantId) {
+        await tx.deviceVariant.update({
+          where: { id: request.variantId },
+          data: { stock: { increment: 1 } },
+        });
+      }
 
       // Inventory log
       await tx.inventoryLog.create({
@@ -276,7 +344,7 @@ export class BorrowRequestService {
         },
       });
 
-      // Admin দের notification
+   
       const admins = await tx.user.findMany({
         where: { role: 'ADMIN' },
         select: { id: true },
@@ -287,10 +355,18 @@ export class BorrowRequestService {
           data: admins.map((admin) => ({
             userId: admin.id,
             message: `Device "${request.device.name}" has been returned. Stock updated.`,
-            type: 'DEVICE_RETURNED',
+            type: 'BORROW_RETURNED',
           })),
         });
       }
+
+      await tx.notification.create({
+        data: {
+          userId: request.userId,
+          message: `You have successfully returned "${request.device.name}".`,
+          type: 'BORROW_RETURNED',
+        },
+      });
 
       return { message: 'Device returned successfully', data: updated };
     });
