@@ -24,13 +24,11 @@ describe('API Routes (e2e)', () => {
 
   // Mock service implementations
   const mockAuthService = {
-    register: jest
-      .fn()
-      .mockImplementation((dto) => ({
-        id: 'mock-user-id',
-        email: dto.email,
-        role: Role.VIEWER,
-      })),
+    register: jest.fn().mockImplementation((dto) => ({
+      id: 'mock-user-id',
+      email: dto.email,
+      role: Role.STUDENT,
+    })),
     login: jest.fn().mockReturnValue({ accessToken: 'mock-jwt-token' }),
     verifyEmail: jest
       .fn()
@@ -48,29 +46,23 @@ describe('API Routes (e2e)', () => {
   };
 
   const mockUserService = {
-    findOne: jest
-      .fn()
-      .mockImplementation((id) => ({
-        id,
-        email: 'user@example.com',
-        role: Role.VIEWER,
-      })),
-    findAll: jest
-      .fn()
-      .mockReturnValue({
-        data: [],
-        meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
-      }),
+    findOne: jest.fn().mockImplementation((id) => ({
+      id,
+      email: 'user@example.com',
+      role: Role.STUDENT,
+    })),
+    findAll: jest.fn().mockReturnValue({
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    }),
     create: jest
       .fn()
       .mockImplementation((dto) => ({ id: 'new-user-id', ...dto })),
     update: jest.fn().mockImplementation((id, dto) => ({ id, ...dto })),
-    remove: jest
-      .fn()
-      .mockImplementation((id) => ({
-        message: 'User deleted successfully',
-        id,
-      })),
+    remove: jest.fn().mockImplementation((id) => ({
+      message: 'User deleted successfully',
+      id,
+    })),
   };
 
   const mockCategoryService = {
@@ -214,7 +206,7 @@ describe('API Routes (e2e)', () => {
       currentUser = {
         userId: 'user-123',
         email: 'test@example.com',
-        role: Role.VIEWER,
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer())
         .patch('/auth/profile')
@@ -240,7 +232,7 @@ describe('API Routes (e2e)', () => {
       currentUser = {
         userId: 'user-123',
         email: 'test@example.com',
-        role: Role.VIEWER,
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer())
         .post('/auth/change-password')
@@ -254,7 +246,7 @@ describe('API Routes (e2e)', () => {
       currentUser = {
         userId: 'user-123',
         email: 'test@example.com',
-        role: Role.VIEWER,
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer())
         .get('/users/me')
@@ -273,11 +265,11 @@ describe('API Routes (e2e)', () => {
       return request(app.getHttpServer()).get('/users').expect(200);
     });
 
-    it('GET /users (Viewer - Forbidden)', () => {
+    it('GET /users (STUDENT - Forbidden)', () => {
       currentUser = {
         userId: 'user-123',
         email: 'test@example.com',
-        role: Role.VIEWER,
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer()).get('/users').expect(403);
     });
@@ -299,7 +291,7 @@ describe('API Routes (e2e)', () => {
       };
       return request(app.getHttpServer())
         .post('/users')
-        .send({ email: 'new@example.com', password: 'pwd', role: Role.VIEWER })
+        .send({ email: 'new@example.com', password: 'pwd', role: Role.STUDENT })
         .expect(201);
     });
 
@@ -311,7 +303,7 @@ describe('API Routes (e2e)', () => {
       };
       return request(app.getHttpServer())
         .patch('/users/some-id')
-        .send({ role: Role.EDITOR })
+        .send({ role: Role.STAFF })
         .expect(200);
     });
 
@@ -330,16 +322,16 @@ describe('API Routes (e2e)', () => {
       currentUser = {
         userId: 'user-123',
         email: 'test@example.com',
-        role: Role.VIEWER,
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer()).get('/categories').expect(200);
     });
 
-    it('POST /categories (Editor Allowed)', () => {
+    it('POST /categories (STAFF Allowed)', () => {
       currentUser = {
-        userId: 'editor-123',
-        email: 'editor@example.com',
-        role: Role.EDITOR,
+        userId: 'STAFF-123',
+        email: 'STAFF@example.com',
+        role: Role.STAFF,
       };
       return request(app.getHttpServer())
         .post('/categories')
@@ -347,11 +339,11 @@ describe('API Routes (e2e)', () => {
         .expect(201);
     });
 
-    it('POST /categories (Viewer Forbidden)', () => {
+    it('POST /categories (STUDENT Forbidden)', () => {
       currentUser = {
         userId: 'user-123',
-        email: 'viewer@example.com',
-        role: Role.VIEWER,
+        email: 'STUDENT@example.com',
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer())
         .post('/categories')
@@ -364,17 +356,17 @@ describe('API Routes (e2e)', () => {
     it('GET /devices', () => {
       currentUser = {
         userId: 'user-123',
-        email: 'viewer@example.com',
-        role: Role.VIEWER,
+        email: 'STUDENT@example.com',
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer()).get('/devices').expect(200);
     });
 
-    it('POST /devices (Editor Allowed)', () => {
+    it('POST /devices (STAFF Allowed)', () => {
       currentUser = {
-        userId: 'editor-123',
-        email: 'editor@example.com',
-        role: Role.EDITOR,
+        userId: 'STAFF-123',
+        email: 'STAFF@example.com',
+        role: Role.STAFF,
       };
       return request(app.getHttpServer())
         .post('/devices')
@@ -384,20 +376,20 @@ describe('API Routes (e2e)', () => {
   });
 
   describe('Inventory Log Routes', () => {
-    it('GET /inventory-logs (Editor Allowed)', () => {
+    it('GET /inventory-logs (STAFF Allowed)', () => {
       currentUser = {
-        userId: 'editor-123',
-        email: 'editor@example.com',
-        role: Role.EDITOR,
+        userId: 'STAFF-123',
+        email: 'STAFF@example.com',
+        role: Role.STAFF,
       };
       return request(app.getHttpServer()).get('/inventory-logs').expect(200);
     });
 
-    it('GET /inventory-logs (Viewer Forbidden)', () => {
+    it('GET /inventory-logs (STUDENT Forbidden)', () => {
       currentUser = {
         userId: 'user-123',
-        email: 'viewer@example.com',
-        role: Role.VIEWER,
+        email: 'STUDENT@example.com',
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer()).get('/inventory-logs').expect(403);
     });
@@ -407,8 +399,8 @@ describe('API Routes (e2e)', () => {
     it('GET /notifications (Any user)', () => {
       currentUser = {
         userId: 'user-123',
-        email: 'viewer@example.com',
-        role: Role.VIEWER,
+        email: 'STUDENT@example.com',
+        role: Role.STUDENT,
       };
       return request(app.getHttpServer()).get('/notifications').expect(200);
     });
@@ -425,11 +417,11 @@ describe('API Routes (e2e)', () => {
         .expect(201);
     });
 
-    it('POST /notifications (Editor Forbidden)', () => {
+    it('POST /notifications (STAFF Forbidden)', () => {
       currentUser = {
-        userId: 'editor-123',
-        email: 'editor@example.com',
-        role: Role.EDITOR,
+        userId: 'STAFF-123',
+        email: 'STAFF@example.com',
+        role: Role.STAFF,
       };
       return request(app.getHttpServer())
         .post('/notifications')
@@ -448,11 +440,11 @@ describe('API Routes (e2e)', () => {
       return request(app.getHttpServer()).get('/admin/dashboard').expect(200);
     });
 
-    it('GET /admin/dashboard (Editor Forbidden)', () => {
+    it('GET /admin/dashboard (STAFF Forbidden)', () => {
       currentUser = {
-        userId: 'editor-123',
-        email: 'editor@example.com',
-        role: Role.EDITOR,
+        userId: 'STAFF-123',
+        email: 'STAFF@example.com',
+        role: Role.STAFF,
       };
       return request(app.getHttpServer()).get('/admin/dashboard').expect(403);
     });

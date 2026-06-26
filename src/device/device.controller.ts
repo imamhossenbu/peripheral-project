@@ -13,7 +13,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DeviceService } from './device.service';
-import { CreateDeviceDto, UpdateDeviceDto, DeviceQueryDto } from './dto/device.dto';
+import {
+  CreateDeviceDto,
+  UpdateDeviceDto,
+  DeviceQueryDto,
+} from './dto/device.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
@@ -39,7 +43,7 @@ export class DeviceController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   @UseInterceptors(FileInterceptor('file'))
   async create(
     @Body() dto: CreateDeviceDto,
@@ -54,7 +58,7 @@ export class DeviceController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   @UseInterceptors(FileInterceptor('file'))
   async update(
     @Param('id') id: string,
@@ -70,7 +74,7 @@ export class DeviceController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   async remove(@Param('id') id: string) {
     return this.deviceService.remove(id);
   }

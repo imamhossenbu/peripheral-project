@@ -8,7 +8,7 @@ A modern, scalable, and feature-rich backend built with **NestJS**, **Prisma ORM
 
 - **Core Framework**: NestJS (v11+)
 - **Database ORM**: Prisma ORM with PostgreSQL Adapter
-- **Authentication**: JWT (Passport) + Custom Role-Based Guards (`ADMIN`, `EDITOR`, `VIEWER`)
+- **Authentication**: JWT (Passport) + Custom Role-Based Guards (`ADMIN`, `STAFF`, `STUDENT`)
 - **Media Uploads**: Cloudinary Integration
 - **Mailing**: Nodemailer (Resend API)
 - **Testing**: Jest & Supertest E2E Test Suite
@@ -21,10 +21,9 @@ A modern, scalable, and feature-rich backend built with **NestJS**, **Prisma ORM
    - User registration and activation flow.
    - JWT-based login with dynamic session validation.
    - Security flows: Password reset, change password, profile details updates, and profile image uploads via Cloudinary.
-   
 2. **Role-Based Access Control (RBAC)**
    - Custom `@Roles(...)` decorator paired with a global `RolesGuard`.
-   - Granular authorization permissions for `ADMIN`, `EDITOR`, and `VIEWER` roles across all modules.
+   - Granular authorization permissions for `ADMIN`, `STAFF`, and `STUDENT` roles across all modules.
 
 3. **User Management (Admin Only)**
    - List, query, filter, paginate, update roles, and manage users.
@@ -58,21 +57,23 @@ A modern, scalable, and feature-rich backend built with **NestJS**, **Prisma ORM
 ### ⚙️ Installation
 
 1. Clone the project and install the dependencies:
+
    ```bash
    npm install
    ```
 
 2. Create a `.env` file in the root directory and configure the environment variables:
+
    ```env
    PORT=3000
    DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
    JWT_SECRET="your_jwt_secret_key"
-   
+
    # Cloudinary config (optional for file uploads)
    CLOUDINARY_CLOUD_NAME="your_cloud_name"
    CLOUDINARY_API_KEY="your_api_key"
    CLOUDINARY_API_SECRET="your_api_secret"
-   
+
    # Mail Service API
    RESEND_API_KEY="re_..."
    EMAIL_FROM="noreply@yourdomain.com"
@@ -116,6 +117,7 @@ The test suite contains **27 tests** covering authorization constraints, validat
 ## 📍 API Routes Reference
 
 ### Auth Module (`/auth`)
+
 - `POST /auth/register` - Register a new account
 - `POST /auth/login` - Authenticate user and receive JWT token
 - `GET /auth/verify?token=...` - Confirm email token verification
@@ -125,36 +127,42 @@ The test suite contains **27 tests** covering authorization constraints, validat
 - `POST /auth/change-password` - Update password while logged in
 
 ### Users Module (`/users`)
+
 - `GET /users/me` - Get current logged-in user profile
-- `GET /users` - Get paginated list of all users (*Admin only*)
-- `GET /users/:id` - Get specific user details (*Admin only*)
-- `POST /users` - Create verified users (*Admin only*)
-- `PATCH /users/:id` - Modify user details/roles (*Admin only*)
-- `DELETE /users/:id` - Delete user account (*Admin only*)
+- `GET /users` - Get paginated list of all users (_Admin only_)
+- `GET /users/:id` - Get specific user details (_Admin only_)
+- `POST /users` - Create verified users (_Admin only_)
+- `PATCH /users/:id` - Modify user details/roles (_Admin only_)
+- `DELETE /users/:id` - Delete user account (_Admin only_)
 
 ### Categories Module (`/categories`)
+
 - `GET /categories` - List categories (includes nested tree view option)
 - `GET /categories/:id` - Get individual category details
-- `POST /categories` - Create a new category (*Admin/Editor only*)
-- `PATCH /categories/:id` - Update category details (*Admin/Editor only*)
-- `DELETE /categories/:id` - Delete a category (*Admin/Editor only*)
+- `POST /categories` - Create a new category (_Admin/STAFF only_)
+- `PATCH /categories/:id` - Update category details (_Admin/STAFF only_)
+- `DELETE /categories/:id` - Delete a category (_Admin/STAFF only_)
 
 ### Devices Module (`/devices`)
+
 - `GET /devices` - Query, filter, and paginate assets
 - `GET /devices/:id` - Retrieve individual device details
-- `POST /devices` - Register a new device (*Admin/Editor only*)
-- `PATCH /devices/:id` - Update device details/status (*Admin/Editor only*)
-- `DELETE /devices/:id` - Remove device (*Admin/Editor only*)
+- `POST /devices` - Register a new device (_Admin/STAFF only_)
+- `PATCH /devices/:id` - Update device details/status (_Admin/STAFF only_)
+- `DELETE /devices/:id` - Remove device (_Admin/STAFF only_)
 
 ### Inventory Logs Module (`/inventory-logs`)
-- `GET /inventory-logs` - Query & paginate audit logs (*Admin/Editor only*)
-- `POST /inventory-logs` - Manually record an asset audit log (*Admin/Editor only*)
+
+- `GET /inventory-logs` - Query & paginate audit logs (_Admin/STAFF only_)
+- `POST /inventory-logs` - Manually record an asset audit log (_Admin/STAFF only_)
 
 ### Notifications Module (`/notifications`)
+
 - `GET /notifications` - Retrieve personal alerts
 - `PATCH /notifications/read-all` - Mark all notifications as read
 - `PATCH /notifications/:id/read` - Mark single notification as read
-- `POST /notifications` - Send targeted/broadcast notification alerts (*Admin only*)
+- `POST /notifications` - Send targeted/broadcast notification alerts (_Admin only_)
 
 ### Admin Module (`/admin`)
-- `GET /admin/dashboard` - Retrieve analytical dashboard statistics (*Admin only*)
+
+- `GET /admin/dashboard` - Retrieve analytical dashboard statistics (_Admin only_)

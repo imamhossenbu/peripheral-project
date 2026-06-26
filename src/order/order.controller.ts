@@ -31,7 +31,7 @@ export class OrderController {
 
   @Get()
   async findAll(@Query() query: OrderQueryDto, @Req() req: AuthRequest) {
-    if (req.user.role === Role.VIEWER) {
+    if (req.user.role === Role.STUDENT) {
       query.userId = req.user.userId;
     }
 
@@ -46,7 +46,7 @@ export class OrderController {
   ) {
     const order = await this.orderService.findOne(id);
 
-    if (req.user.role === Role.VIEWER && order.userId !== req.user.userId) {
+    if (req.user.role === Role.STUDENT && order.userId !== req.user.userId) {
       throw new ForbiddenException('You can only download your own invoices');
     }
 
@@ -63,7 +63,7 @@ export class OrderController {
   async findOne(@Param('id') id: string, @Req() req: AuthRequest) {
     const order = await this.orderService.findOne(id);
 
-    if (req.user.role === Role.VIEWER && order.userId !== req.user.userId) {
+    if (req.user.role === Role.STUDENT && order.userId !== req.user.userId) {
       throw new ForbiddenException('You can only access your own orders');
     }
 
@@ -71,9 +71,9 @@ export class OrderController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.EDITOR, Role.VIEWER)
+  @Roles(Role.ADMIN, Role.STAFF, Role.STUDENT)
   async create(@Body() dto: CreateOrderDto, @Req() req: AuthRequest) {
-    if (req.user.role === Role.VIEWER) {
+    if (req.user.role === Role.STUDENT) {
       dto.userId = req.user.userId;
     }
 
@@ -81,13 +81,13 @@ export class OrderController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   async update(@Param('id') id: string, @Body() dto: UpdateOrderDto) {
     return this.orderService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   async remove(@Param('id') id: string) {
     return this.orderService.remove(id);
   }

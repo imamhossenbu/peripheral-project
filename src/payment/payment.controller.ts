@@ -40,7 +40,7 @@ export class PaymentController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   async findAll(@Query() query: PaymentQueryDto, @Req() req: AuthRequest) {
-    if (req.user.role === Role.VIEWER) {
+    if (req.user.role === Role.STUDENT) {
       query.userId = req.user.userId;
     }
 
@@ -49,12 +49,12 @@ export class PaymentController {
 
   @Post('sslcommerz/initiate')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR, Role.VIEWER)
+  @Roles(Role.ADMIN, Role.STAFF, Role.STUDENT)
   async initiateSslCommerz(
     @Body() dto: InitSslCommerzPaymentDto,
     @Req() req: AuthRequest,
   ) {
-    if (req.user.role === Role.VIEWER) {
+    if (req.user.role === Role.STUDENT) {
       const order = await this.orderService.findOne(dto.orderId);
       if (order.userId !== req.user.userId) {
         throw new ForbiddenException('You can only pay for your own orders');
@@ -107,7 +107,7 @@ export class PaymentController {
   async findOne(@Param('id') id: string, @Req() req: AuthRequest) {
     const payment = await this.paymentService.findOne(id);
 
-    if (req.user.role === Role.VIEWER && payment.userId !== req.user.userId) {
+    if (req.user.role === Role.STUDENT && payment.userId !== req.user.userId) {
       throw new ForbiddenException('You can only access your own payments');
     }
 
@@ -116,9 +116,9 @@ export class PaymentController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR, Role.VIEWER)
+  @Roles(Role.ADMIN, Role.STAFF, Role.STUDENT)
   async create(@Body() dto: CreatePaymentDto, @Req() req: AuthRequest) {
-    if (req.user.role === Role.VIEWER) {
+    if (req.user.role === Role.STUDENT) {
       const order = await this.orderService.findOne(dto.orderId);
       if (order.userId !== req.user.userId) {
         throw new ForbiddenException('You can only pay for your own orders');
@@ -131,14 +131,14 @@ export class PaymentController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   async update(@Param('id') id: string, @Body() dto: UpdatePaymentDto) {
     return this.paymentService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN, Role.EDITOR)
+  @Roles(Role.ADMIN, Role.STAFF)
   async remove(@Param('id') id: string) {
     return this.paymentService.remove(id);
   }

@@ -22,8 +22,8 @@ export class AdminService {
 
     const usersByRole = {
       ADMIN: 0,
-      EDITOR: 0,
-      VIEWER: 0,
+      STAFF: 0,
+      STUDENT: 0,
     };
     for (const group of usersByRoleList) {
       if (group.role in usersByRole) {

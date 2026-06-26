@@ -8,7 +8,7 @@ import { Role } from '../../generated/prisma';
 
 @Controller('inventory-logs')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.EDITOR)
+@Roles(Role.ADMIN, Role.STAFF)
 export class InventoryLogController {
   constructor(private readonly logService: InventoryLogService) {}
 
