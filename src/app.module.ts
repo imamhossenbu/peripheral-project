@@ -17,6 +17,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BorrowRequestModule } from './borrow-request/borrow-request.module';
 import { DeviceChatModule } from './device-chat/device-chat.module';
+import { FineModule } from './fine/fine.module';
+import { DeviceReviewModule } from './device-review/device-review.module';
+import { OrderTrackingModule } from './order-tracking/tracking.module';
+
 
 @Module({
   imports: [
@@ -33,6 +37,10 @@ import { DeviceChatModule } from './device-chat/device-chat.module';
     OrderModule,
     BorrowRequestModule,
     DeviceChatModule,
+    FineModule,
+    DeviceReviewModule,
+    OrderTrackingModule,
+
     PaymentModule,
     JwtModule.register({
       global: true,

@@ -109,6 +109,7 @@ model User {
   invoices          Invoice[]
   reviews           DeviceReview[]
   fines             Fine[]
+  trackingUpdates OrderTracking[]
 }
 
 // ─── CATEGORY ─────────────────────────────────────────────
@@ -318,6 +319,7 @@ model Order {
 
   user          User          @relation(fields: [userId], references: [id])
   items         OrderItem[]
+  trackingUpdates  OrderTracking[]
   payments      Payment[]
   invoice       Invoice?
 
@@ -325,6 +327,32 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
 }
+
+
+enum OrderTrackingStage {
+  PLACED
+  PREPARING
+  OUT_FOR_DELIVERY
+  ARRIVED
+  DELIVERED
+}
+
+model OrderTracking {
+  id          String             @id @default(cuid())
+  orderId     String
+  staffId     String             // কোন staff/admin location পাঠাচ্ছে
+  latitude    Float
+  longitude   Float
+  stage       OrderTrackingStage @default(OUT_FOR_DELIVERY)
+  note        String?
+  recordedAt  DateTime           @default(now())
+
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  staff       User               @relation(fields: [staffId], references: [id])
+
+  @@index([orderId, recordedAt])
+}
+
 
 model OrderItem {
   id        String   @id @default(cuid())

@@ -12,10 +12,14 @@ import {
   BorrowRequestQueryDto,
 } from './dto/borrow-request.dto';
 import { BorrowStatus } from '../../generated/prisma';
+import { FineService } from '../fine/fine.service';
 
 @Injectable()
 export class BorrowRequestService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fineService: FineService,
+  ) {}
 
   // Student: নিজের সব request দেখবে
   async getMyRequests(userId: string, query: BorrowRequestQueryDto) {
@@ -327,6 +331,14 @@ export class BorrowRequestService {
         data: { status: BorrowStatus.RETURNED, returnedAt },
       });
 
+      // endDate পার হয়ে গেলে automatically late fine create করো
+      await this.fineService.createLateFineIfApplicable(tx, {
+        borrowRequestId: requestId,
+        userId: request.userId,
+        endDate: request.endDate,
+        returnedAt,
+      });
+
       // Variant stock বাড়াও (যদি variant দেওয়া থাকে)
       if (request.variantId) {
         await tx.deviceVariant.update({
@@ -344,7 +356,7 @@ export class BorrowRequestService {
         },
       });
 
-   
+      // Admin দের notification
       const admins = await tx.user.findMany({
         where: { role: 'ADMIN' },
         select: { id: true },
@@ -360,6 +372,7 @@ export class BorrowRequestService {
         });
       }
 
+      // ব্যবহারকারীকেও confirmation notification
       await tx.notification.create({
         data: {
           userId: request.userId,
