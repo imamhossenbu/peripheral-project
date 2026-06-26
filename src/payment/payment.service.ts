@@ -11,6 +11,7 @@ import {
   PaymentTransactionStatus,
 } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrderService } from '../order/order.service';
 import {
   CreatePaymentDto,
   PaymentQueryDto,
@@ -30,7 +31,10 @@ interface SslCommerzPayload {
 
 @Injectable()
 export class PaymentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private orderService: OrderService,
+  ) {}
 
   async findAll(query: PaymentQueryDto) {
     const { page, limit, orderId, userId, status, method } = query;
@@ -129,24 +133,30 @@ export class PaymentService {
       dto.paidAt ??
       (status === PaymentTransactionStatus.SUCCESS ? new Date() : undefined);
 
-    const payment = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.payment.create({
-        data: {
-          orderId: dto.orderId,
-          userId,
-          amount: dto.amount,
-          method: dto.method,
-          status,
-          transactionId: dto.transactionId,
-          provider: dto.provider,
-          paidAt: typeof paidAt === 'string' ? new Date(paidAt) : paidAt,
-          notes: dto.notes,
-        },
-      });
+    const { payment, paymentStatusChanged } = await this.prisma.$transaction(
+      async (tx) => {
+        const created = await tx.payment.create({
+          data: {
+            orderId: dto.orderId,
+            userId,
+            amount: dto.amount,
+            method: dto.method,
+            status,
+            transactionId: dto.transactionId,
+            provider: dto.provider,
+            paidAt: typeof paidAt === 'string' ? new Date(paidAt) : paidAt,
+            notes: dto.notes,
+          },
+        });
 
-      await this.syncOrderPaymentStatus(tx, dto.orderId);
-      return created;
-    });
+        const result = await this.syncOrderPaymentStatus(tx, dto.orderId);
+        await this.notifyPaymentOutcome(tx, created);
+
+        return { payment: created, paymentStatusChanged: result };
+      },
+    );
+
+    await this.handlePaymentStatusSideEffects(paymentStatusChanged);
 
     return this.findOne(payment.id);
   }
@@ -353,23 +363,36 @@ export class PaymentService {
         ? new Date()
         : undefined);
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.payment.update({
-        where: { id },
-        data: {
-          amount: dto.amount,
-          method: dto.method,
-          status: dto.status,
-          transactionId: dto.transactionId,
-          provider: dto.provider,
-          paidAt: typeof paidAt === 'string' ? new Date(paidAt) : paidAt,
-          notes: dto.notes,
-        },
-      });
+    const statusChanged = dto.status && dto.status !== payment.status;
 
-      await this.syncOrderPaymentStatus(tx, payment.orderId);
-      return result;
-    });
+    const { updated, paymentStatusChanged } = await this.prisma.$transaction(
+      async (tx) => {
+        const result = await tx.payment.update({
+          where: { id },
+          data: {
+            amount: dto.amount,
+            method: dto.method,
+            status: dto.status,
+            transactionId: dto.transactionId,
+            provider: dto.provider,
+            paidAt: typeof paidAt === 'string' ? new Date(paidAt) : paidAt,
+            notes: dto.notes,
+          },
+        });
+
+        const syncResult = await this.syncOrderPaymentStatus(
+          tx,
+          payment.orderId,
+        );
+        if (statusChanged) {
+          await this.notifyPaymentOutcome(tx, result);
+        }
+
+        return { updated: result, paymentStatusChanged: syncResult };
+      },
+    );
+
+    await this.handlePaymentStatusSideEffects(paymentStatusChanged);
 
     return this.findOne(updated.id);
   }
@@ -431,26 +454,60 @@ export class PaymentService {
       );
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.payment.update({
-        where: { id: payment.id },
-        data: {
-          status,
-          paidAt:
-            status === PaymentTransactionStatus.SUCCESS
-              ? new Date()
-              : payment.paidAt,
-          notes: bankTransactionId
-            ? `${notes}. Bank transaction: ${bankTransactionId}`
-            : notes,
-        },
-      });
+    const statusChanged = status !== payment.status;
 
-      await this.syncOrderPaymentStatus(tx, payment.orderId);
-      return result;
-    });
+    const { updated, paymentStatusChanged } = await this.prisma.$transaction(
+      async (tx) => {
+        const result = await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status,
+            paidAt:
+              status === PaymentTransactionStatus.SUCCESS
+                ? new Date()
+                : payment.paidAt,
+            notes: bankTransactionId
+              ? `${notes}. Bank transaction: ${bankTransactionId}`
+              : notes,
+          },
+        });
+
+        const syncResult = await this.syncOrderPaymentStatus(
+          tx,
+          payment.orderId,
+        );
+        if (statusChanged) {
+          await this.notifyPaymentOutcome(tx, result);
+        }
+
+        return { updated: result, paymentStatusChanged: syncResult };
+      },
+    );
+
+    await this.handlePaymentStatusSideEffects(paymentStatusChanged);
 
     return this.findOne(updated.id);
+  }
+
+  // Payment SUCCESS/FAILED হলে student কে notify করো
+  private async notifyPaymentOutcome(tx: any, payment: Payment) {
+    if (payment.status === PaymentTransactionStatus.SUCCESS) {
+      await tx.notification.create({
+        data: {
+          userId: payment.userId,
+          message: `Your payment of ${Number(payment.amount).toFixed(2)} was successful.`,
+          type: 'PAYMENT_SUCCESS',
+        },
+      });
+    } else if (payment.status === PaymentTransactionStatus.FAILED) {
+      await tx.notification.create({
+        data: {
+          userId: payment.userId,
+          message: `Your payment of ${Number(payment.amount).toFixed(2)} failed. Please try again or contact support.`,
+          type: 'PAYMENT_FAILED',
+        },
+      });
+    }
   }
 
   private getSslCommerzConfig() {
@@ -496,14 +553,20 @@ export class PaymentService {
     return config.frontendCancelUrl;
   }
 
-  private async syncOrderPaymentStatus(tx: any, orderId: string) {
+  // Order এর paymentStatus recompute করে; নতুন status (যদি বদলে থাকে) আর orderId
+  // ফেরত দেয় যাতে transaction শেষ হওয়ার পর caller invoice/notification side-effect চালাতে পারে
+  private async syncOrderPaymentStatus(
+    tx: any,
+    orderId: string,
+  ): Promise<{ orderId: string; newStatus: PaymentStatus } | null> {
     const order = await tx.order.findUnique({
       where: { id: orderId },
       include: { payments: true },
     });
 
-    if (!order) return;
+    if (!order) return null;
 
+    const previousStatus: PaymentStatus = order.paymentStatus;
     const total = Number(order.total);
     const paid = order.payments
       .filter(
@@ -537,5 +600,45 @@ export class PaymentService {
       where: { id: orderId },
       data: { paymentStatus },
     });
+
+    if (paymentStatus === previousStatus) return null;
+    return { orderId, newStatus: paymentStatus };
+  }
+
+  // syncOrderPaymentStatus এর transaction শেষ হওয়ার পরে call হয় — কারণ invoice
+  // creation নিজের একটা আলাদা transaction খোলে (nested transaction এড়াতে)
+  private async handlePaymentStatusSideEffects(
+    result: { orderId: string; newStatus: PaymentStatus } | null,
+  ) {
+    if (!result) return;
+
+    if (result.newStatus === PaymentStatus.PAID) {
+      await this.orderService.ensureInvoiceForPaidOrder(result.orderId);
+      const order = await this.prisma.order.findUnique({
+        where: { id: result.orderId },
+      });
+      if (order) {
+        await this.prisma.notification.create({
+          data: {
+            userId: order.userId,
+            message: `Your order ${order.orderNumber} is now fully paid.`,
+            type: 'ORDER_PAID',
+          },
+        });
+      }
+    } else if (result.newStatus === PaymentStatus.REFUNDED) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: result.orderId },
+      });
+      if (order) {
+        await this.prisma.notification.create({
+          data: {
+            userId: order.userId,
+            message: `Your order ${order.orderNumber} has been refunded.`,
+            type: 'ORDER_REFUNDED',
+          },
+        });
+      }
+    }
   }
 }

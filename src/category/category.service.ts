@@ -4,7 +4,18 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCategoryDto, UpdateCategoryDto, CategoryQueryDto } from './dto/category.dto';
+import {
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  CategoryQueryDto,
+} from './dto/category.dto';
+
+type FlatCategory = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  [key: string]: any;
+};
 
 @Injectable()
 export class CategoryService {
@@ -22,16 +33,15 @@ export class CategoryService {
     return categories;
   }
 
-  private buildTree(flatCategories: any[]) {
+  // root থেকে শুরু করে সব descendants কে nested subCategories আকারে সাজায়
+  private buildTree(flatCategories: FlatCategory[]) {
     const map = new Map<string, any>();
     const roots: any[] = [];
 
-    // Initialize map with empty subCategories lists
     for (const cat of flatCategories) {
       map.set(cat.id, { ...cat, subCategories: [] });
     }
 
-    // Connect children to parents or push to roots
     for (const cat of flatCategories) {
       const mapped = map.get(cat.id);
       if (cat.parentId && map.has(cat.parentId)) {
@@ -44,21 +54,75 @@ export class CategoryService {
     return roots;
   }
 
+  // নির্দিষ্ট একটা category কে root ধরে তার নিচের পুরো subtree (সব level) বানায়,
+  // প্রতিটা node এ devices সহ
+  private buildSubtree(
+    rootId: string,
+    flatCategories: FlatCategory[],
+    devicesByCategoryId: Map<string, any[]>,
+  ) {
+    const childrenByParent = new Map<string, FlatCategory[]>();
+    for (const cat of flatCategories) {
+      if (!cat.parentId) continue;
+      const list = childrenByParent.get(cat.parentId) ?? [];
+      list.push(cat);
+      childrenByParent.set(cat.parentId, list);
+    }
+
+    const build = (catId: string): any => {
+      const cat = flatCategories.find((c) => c.id === catId);
+      if (!cat) return null;
+
+      const children = childrenByParent.get(catId) ?? [];
+
+      return {
+        ...cat,
+        devices: devicesByCategoryId.get(catId) ?? [],
+        subCategories: children.map((child) => build(child.id)),
+      };
+    };
+
+    return build(rootId);
+  }
+
   async findOne(id: string) {
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: {
-        parent: true,
-        subCategories: true,
-        devices: true,
-      },
+      include: { parent: true },
     });
 
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    return category;
+    // পুরো tree (flat) + সব devices আনো, তারপর এই id কে root ধরে subtree বানাও
+    const [allCategories, allDevices] = await Promise.all([
+      this.prisma.category.findMany({ orderBy: { name: 'asc' } }),
+      this.prisma.device.findMany({
+        select: {
+          id: true,
+          name: true,
+          brand: true,
+          model: true,
+          status: true,
+          categoryId: true,
+        },
+      }),
+    ]);
+
+    const devicesByCategoryId = new Map<string, any[]>();
+    for (const device of allDevices) {
+      const list = devicesByCategoryId.get(device.categoryId) ?? [];
+      list.push(device);
+      devicesByCategoryId.set(device.categoryId, list);
+    }
+
+    const subtree = this.buildSubtree(id, allCategories, devicesByCategoryId);
+
+    return {
+      ...subtree,
+      parent: category.parent,
+    };
   }
 
   async create(dto: CreateCategoryDto) {
@@ -67,7 +131,9 @@ export class CategoryService {
         where: { id: dto.parentId },
       });
       if (!parent) {
-        throw new NotFoundException(`Parent category with ID ${dto.parentId} not found`);
+        throw new NotFoundException(
+          `Parent category with ID ${dto.parentId} not found`,
+        );
       }
     }
 
@@ -76,9 +142,40 @@ export class CategoryService {
     });
   }
 
+  // dto.parentId কে নতুন parent ধরে তার ancestor chain ধরে উপরে উঠে দেখে কোথাও
+  // movingCategoryId পড়ে কিনা — পড়লে সেটা একটা cycle তৈরি করবে
+  private async assertNoCycle(movingCategoryId: string, newParentId: string) {
+    let currentId: string | null = newParentId;
+    const visited = new Set<string>();
+
+    while (currentId) {
+      if (currentId === movingCategoryId) {
+        throw new BadRequestException(
+          'Cannot move a category under its own descendant (would create a cycle)',
+        );
+      }
+      if (visited.has(currentId)) {
+        // ইতিমধ্যেই data তে একটা cycle আছে — safety break, infinite loop ঠেকাও
+        break;
+      }
+      visited.add(currentId);
+
+      const current: { parentId: string | null } | null =
+        await this.prisma.category.findUnique({
+          where: { id: currentId },
+          select: { parentId: true },
+        });
+      currentId = current?.parentId ?? null;
+    }
+  }
+
   async update(id: string, dto: UpdateCategoryDto) {
     // Check if category exists
-    await this.findOne(id);
+    await this.prisma.category.findUnique({ where: { id } }).then((cat) => {
+      if (!cat) {
+        throw new NotFoundException(`Category with ID ${id} not found`);
+      }
+    });
 
     if (dto.parentId) {
       if (dto.parentId === id) {
@@ -88,8 +185,13 @@ export class CategoryService {
         where: { id: dto.parentId },
       });
       if (!parent) {
-        throw new NotFoundException(`Parent category with ID ${dto.parentId} not found`);
+        throw new NotFoundException(
+          `Parent category with ID ${dto.parentId} not found`,
+        );
       }
+
+      // পুরো ancestor chain ধরে cycle check করো
+      await this.assertNoCycle(id, dto.parentId);
     }
 
     return this.prisma.category.update({
@@ -99,8 +201,12 @@ export class CategoryService {
   }
 
   async remove(id: string) {
-    // Check if category exists
-    await this.findOne(id);
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+    });
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
 
     // Check if it has subcategories
     const subCategoriesCount = await this.prisma.category.count({
