@@ -23,4 +23,14 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(upload);
     });
   }
+
+  async uploadFiles(
+    files: Express.Multer.File[],
+  ): Promise<UploadApiResponse[]> {
+    if (!files || files.length === 0) {
+      return [];
+    }
+
+    return Promise.all(files.map((file) => this.uploadFile(file)));
+  }
 }

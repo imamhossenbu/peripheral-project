@@ -19,6 +19,9 @@ import { Status } from '../../../generated/prisma';
 // ─── VARIANT DTO ──────────────────────────────────────────
 
 export class CreateDeviceVariantDto {
+  constructor() {
+    console.log('CreateDeviceVariantDto created');
+  }
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -55,6 +58,11 @@ export class CreateDeviceVariantDto {
   imageUrl?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 }
@@ -101,6 +109,11 @@ export class UpdateDeviceVariantDto {
   imageUrl?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
   @IsBoolean()
   isActive?: boolean;
 }
@@ -212,8 +225,8 @@ export class CreateDeviceDto {
     }
   })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateDeviceVariantDto)
+  // @ValidateNested({ each: true })
+  // @Type(() => CreateDeviceVariantDto)
   variants?: CreateDeviceVariantDto[];
 }
 
@@ -302,8 +315,8 @@ export class UpdateDeviceDto {
     }
   })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UpdateDeviceVariantDto)
+  // @ValidateNested({ each: true })
+  // @Type(() => UpdateDeviceVariantDto)
   variants?: UpdateDeviceVariantDto[];
 
   // নতুন images add করতে (existing গুলো replace হবে না)

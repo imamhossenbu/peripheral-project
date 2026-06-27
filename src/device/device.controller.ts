@@ -9,15 +9,17 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+
 import { DeviceService } from './device.service';
 import {
   CreateDeviceDto,
   UpdateDeviceDto,
   DeviceQueryDto,
 } from './dto/device.dto';
+
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorator/roles.decorator';
@@ -41,36 +43,102 @@ export class DeviceController {
     return this.deviceService.findOne(id);
   }
 
+  // ================= CREATE =================
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.STAFF)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      {
+        name: 'file',
+        maxCount: 1,
+      },
+      {
+        name: 'files',
+        maxCount: 20,
+      },
+    ]),
+  )
   async create(
     @Body() dto: CreateDeviceDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles()
+    files: {
+      file?: Express.Multer.File[];
+      files?: Express.Multer.File[];
+    },
   ) {
-    if (file) {
-      const uploadResult = await this.cloudinaryService.uploadFile(file);
-      dto.imageUrl = uploadResult.secure_url;
+    // Primary Image
+    if (files.file?.length) {
+      const uploaded = await this.cloudinaryService.uploadFile(files.file[0]);
+      dto.imageUrl = uploaded.secure_url;
     }
+
+    // Additional Images
+    if (files.files?.length) {
+      const uploadedImages = await this.cloudinaryService.uploadFiles(
+        files.files,
+      );
+
+      dto.images = uploadedImages.map((img, index) => ({
+        url: img.secure_url,
+        isPrimary: false,
+        order: index,
+      }));
+    }
+
     return this.deviceService.create(dto);
   }
+
+  // ================= UPDATE =================
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN, Role.STAFF)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      {
+        name: 'file',
+        maxCount: 1,
+      },
+      {
+        name: 'files',
+        maxCount: 20,
+      },
+    ]),
+  )
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateDeviceDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles()
+    files: {
+      file?: Express.Multer.File[];
+      files?: Express.Multer.File[];
+    },
   ) {
-    if (file) {
-      const uploadResult = await this.cloudinaryService.uploadFile(file);
-      dto.imageUrl = uploadResult.secure_url;
+    // Primary Image
+    if (files.file?.length) {
+      const uploaded = await this.cloudinaryService.uploadFile(files.file[0]);
+      dto.imageUrl = uploaded.secure_url;
     }
+
+    // Additional Images
+    if (files.files?.length) {
+      const uploadedImages = await this.cloudinaryService.uploadFiles(
+        files.files,
+      );
+
+      dto.newImages = uploadedImages.map((img, index) => ({
+        url: img.secure_url,
+        isPrimary: false,
+        order: index,
+      }));
+    }
+
     return this.deviceService.update(id, dto);
   }
+
+  // ================= DELETE =================
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)

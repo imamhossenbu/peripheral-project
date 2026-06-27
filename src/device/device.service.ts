@@ -19,6 +19,24 @@ export class DeviceService {
     private notificationService: NotificationService,
   ) {}
 
+  // ─── PRIVATE: GET DESCENDANT CATEGORY IDS ────────────────
+  private async getDescendantCategoryIds(
+    categoryId: string,
+  ): Promise<string[]> {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { subCategories: true },
+    });
+    if (!category) return [];
+
+    let ids = [category.id];
+    for (const sub of category.subCategories) {
+      const subIds = await this.getDescendantCategoryIds(sub.id);
+      ids = ids.concat(subIds);
+    }
+    return ids;
+  }
+
   // ─── FIND ALL ─────────────────────────────────────────────
 
   async findAll(query: DeviceQueryDto) {
@@ -28,7 +46,10 @@ export class DeviceService {
 
     const where: any = {};
 
-    if (categoryId) where.categoryId = categoryId;
+    if (categoryId) {
+      const categoryIds = await this.getDescendantCategoryIds(categoryId);
+      where.categoryId = { in: categoryIds };
+    }
     if (status) where.status = status;
 
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -55,7 +76,7 @@ export class DeviceService {
         include: {
           category: true,
           images: { orderBy: { order: 'asc' } },
-          variants: { where: { isActive: true } },
+          variants: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -100,6 +121,10 @@ export class DeviceService {
   // ─── CREATE ───────────────────────────────────────────────
 
   async create(dto: CreateDeviceDto) {
+    console.log('DTO =', dto);
+    console.log('Variants =', dto.variants);
+    console.log('First Variant =', dto.variants?.[0]);
+    console.log('First Variant Name =', dto.variants?.[0]?.name);
     // Category check
     const category = await this.prisma.category.findUnique({
       where: { id: dto.categoryId },
@@ -160,15 +185,20 @@ export class DeviceService {
 
       // 3. Variants
       if (variants && variants.length > 0) {
-        await tx.deviceVariant.createMany({
-          data: variants.map((v) => ({
-            ...v,
-            deviceId: created.id,
-            price: v.price !== undefined ? v.price : null,
-            stock: v.stock ?? 0,
-            isActive: v.isActive ?? true,
-          })),
-        });
+        for (const v of variants) {
+          await tx.deviceVariant.create({
+            data: {
+              deviceId: created.id,
+              name: v.name,
+              sku: v.sku,
+              price: v.price ?? null,
+              stock: v.stock ?? 0,
+              specifications: v.specifications ?? {},
+              imageUrl: v.imageUrl,
+              isActive: v.isActive ?? true,
+            },
+          });
+        }
       }
 
       // 4. Inventory log
