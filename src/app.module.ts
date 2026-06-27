@@ -21,7 +21,7 @@ import { FineModule } from './fine/fine.module';
 import { DeviceReviewModule } from './device-review/device-review.module';
 import { OrderTrackingModule } from './order-tracking/tracking.module';
 import { DeviceBookingModule } from './device-booking/device-booking.module';
-
+import { StudentDashboardModule } from './student/student.module';
 
 @Module({
   imports: [
@@ -42,7 +42,7 @@ import { DeviceBookingModule } from './device-booking/device-booking.module';
     DeviceReviewModule,
     OrderTrackingModule,
     DeviceBookingModule,
-
+    StudentDashboardModule,
     PaymentModule,
     JwtModule.register({
       global: true,

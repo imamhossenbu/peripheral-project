@@ -210,7 +210,7 @@ export class AuthService {
       data: { password: hash },
     });
 
-    await this.mailService.sendSecurityAlertEmail(user.email, 'changed');
+    // await this.mailService.sendSecurityAlertEmail(user.email, 'changed');
     return { message: 'Password changed successfully' };
   }
 
