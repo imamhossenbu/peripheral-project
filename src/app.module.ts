@@ -20,6 +20,7 @@ import { DeviceChatModule } from './device-chat/device-chat.module';
 import { FineModule } from './fine/fine.module';
 import { DeviceReviewModule } from './device-review/device-review.module';
 import { OrderTrackingModule } from './order-tracking/tracking.module';
+import { DeviceBookingModule } from './device-booking/device-booking.module';
 
 
 @Module({
@@ -40,6 +41,7 @@ import { OrderTrackingModule } from './order-tracking/tracking.module';
     FineModule,
     DeviceReviewModule,
     OrderTrackingModule,
+    DeviceBookingModule,
 
     PaymentModule,
     JwtModule.register({
